@@ -8,6 +8,10 @@ Descarga_Historial_Clinico_Tiempo,optimized,Emulador_Pixel6_API34,Local_Sin_Limi
 Peticiones_Red_Historial,baseline,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_Desactivada,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,solicitudes,N/A,PENDIENTE,Número de solicitudes HTTP completadas
 Peticiones_Red_Historial,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_PrimeraCarga,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,solicitudes,PENDIENTE,PENDIENTE,Número de solicitudes HTTP iniciales
 Peticiones_Red_Historial,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Caliente_EnCache,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,solicitudes,PENDIENTE,PENDIENTE,Solicitudes en navegación repetida
+Tiempo_Consulta_Room_Historial,baseline,Emulador_Pixel6_API34,Local,Memoria_Completa,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,ms,N/A,PENDIENTE,Carga monolítica de 220 registros sin paginar
+Tiempo_Consulta_Room_Historial,optimized,Emulador_Pixel6_API34,Local,Paging3_Inicial,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,ms,PENDIENTE,PENDIENTE,Carga de página inicial de 20 registros con índice
+Memoria_RAM_Historial_Room,baseline,Emulador_Pixel6_API34,Local,220_Registros_Completos,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,N/A,PENDIENTE,Uso de memoria con 220 entidades instanciadas
+Memoria_RAM_Historial_Room,optimized,Emulador_Pixel6_API34,Local,Paging3_20_Registros,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,PENDIENTE,PENDIENTE,Uso de memoria con 20 entidades activas en ventana
 CPU_Pico_Videoconsulta,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%,N/A,PENDIENTE,Medición con CPU Profiler (Fase 6)
 CPU_Pico_Videoconsulta,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%,PENDIENTE,PENDIENTE,Medición con CPU Profiler (Fase 6)
 Memoria_Heap_6_Ciclos,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,N/A,PENDIENTE,Heap retenido tras 6 ciclos (Fase 6)

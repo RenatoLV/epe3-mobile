@@ -8,9 +8,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,70 +23,52 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import coil.compose.SubcomposeAsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Size
-import com.example.epe3_moviles.BuildConfig
 import com.example.epe3_moviles.config.NetworkConfig
-import com.example.epe3_moviles.ui.theme.EPE3_MovilesTheme
+import com.example.epe3_moviles.data.local.ConsultaEntity
 
 /**
- * Modelo representativo de una consulta médica ficticia para la prueba de red.
- */
-data class ConsultaFicticia(
-    val id: Int,
-    val medico: String,
-    val especialidad: String,
-    val fecha: String,
-    val diagnostico: String
-) {
-    /**
-     * URL de la imagen del médico obtenida desde el archivo central de configuración [NetworkConfig].
-     */
-    val fotoUrl: String
-        get() = NetworkConfig.getFotoMedicoUrl(id)
-}
-
-/**
- * Lista de 8 consultas médicas y 8 médicos ficticios clearly identificados.
- * Coincide exactamente con el escenario de prueba del informe (8 fotos de perfil médico).
- */
-val consultasFicticiasPaso3 = listOf(
-    ConsultaFicticia(1, "Dr. Andrés Morales", "Cardiología", "12 ago 2026", "Control post-cirugía: evolución favorable"),
-    ConsultaFicticia(2, "Dra. Isabel Fuentes", "Medicina General", "28 jul 2026", "Gripe estacional, prescripción de paracetamol"),
-    ConsultaFicticia(3, "Dr. Carlos Leiva", "Traumatología", "15 jun 2026", "Seguimiento fractura de muñeca derecha"),
-    ConsultaFicticia(4, "Dra. Valentina Ríos", "Dermatología", "02 jun 2026", "Dermatitis atópica, crema con corticoides"),
-    ConsultaFicticia(5, "Dr. Sebastián Torres", "Gastroenterología", "18 may 2026", "Gastritis leve, indicaciones alimentarias"),
-    ConsultaFicticia(6, "Dra. Camila Espinoza", "Oftalmología", "30 abr 2026", "Revisión anual, sin novedades"),
-    ConsultaFicticia(7, "Dr. Felipe Navarro", "Neurología", "10 abr 2026", "Cefalea tensional recurrente"),
-    ConsultaFicticia(8, "Dra. Patricia Vega", "Endocrinología", "22 mar 2026", "Control tiroideo, TSH dentro del rango")
-)
-
-/**
- * Pantalla Historial Clínico adaptada para medición real con Network Inspector en Android Studio.
+ * Pantalla Historial Clínico conectada a Room y Paging 3 (Paso 4).
  *
- * BASELINE:
- * - Descarga 8 imágenes originales de alta resolución (~2.4 MB c/u).
- * - Caché de disco y memoria DESACTIVADAS para permitir repeticiones idénticas en la medición.
- * - Comportamiento identificado explícitamente como didáctico en el banner superior.
+ * BASELINE (Didáctico):
+ * - Consulta Room monolítica (`getAllConsultas`) que trae los 220 registros completos a memoria.
+ * - Muestra el tiempo de consulta y el conteo total.
+ * - Carga de imágenes HTTP originales sin caché.
  *
  * OPTIMIZED:
- * - Descarga 8 imágenes WebP de 480 px (~100-180 KB c/u).
- * - Carga diferida (lazy loading) al aparecer en pantalla con LazyColumn.
- * - Caché de disco y memoria ACTIVADAS para no re-descargar datos ya consultados.
+ * - Consulta Room con Paging 3 (`getPagingConsultas`) en páginas de 20 registros bajo demanda.
+ * - Carga incremental al desplazarse, optimizada por índice en columna `fecha`.
+ * - Carga de imágenes HTTP WebP con caché en disco y memoria.
  *
  * Accesibilidad (WCAG):
- * - LiveRegion y contentDescription en estados de carga ("Cargando fotografía...").
- * - Estado de error visual y anunciado por TalkBack si el servidor no responde.
+ * - Anuncio accesible de estado de carga mediante [LiveRegionMode.Polite].
+ * - contentDescription completo en cada elemento.
  * - Objetivos táctiles mínimos de 48 dp.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistorialClinicoScreen(onBack: () -> Unit) {
-    val isBaseline = BuildConfig.FLAVOR == "baseline"
+fun HistorialClinicoScreen(
+    onBack: () -> Unit,
+    viewModel: HistorialViewModel = viewModel()
+) {
+    val isBaseline = viewModel.isBaseline
+    val isLoading by viewModel.isLoading.collectAsState()
+    val totalRegistros by viewModel.totalRegistros.collectAsState()
+    val tiempoBaselineMs by viewModel.tiempoConsultaBaselineMs.collectAsState()
+
+    // Para BASELINE: lista completa
+    val baselineItems by viewModel.baselineConsultas.collectAsState()
+
+    // Para OPTIMIZED: flujo paginado de Paging 3 (20 items/página)
+    val pagingItems = viewModel.pagingConsultasFlow.collectAsLazyPagingItems()
 
     Scaffold(
         topBar = {
@@ -117,19 +100,88 @@ fun HistorialClinicoScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Banner técnico de la variante para la prueba de red
-            NetworkFlavorBanner(isBaseline = isBaseline)
+            // Banner de la variante indicando la estrategia de Room
+            RoomFlavorBanner(
+                isBaseline = isBaseline,
+                totalRegistros = totalRegistros,
+                tiempoConsultaMs = tiempoBaselineMs
+            )
 
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                itemsIndexed(consultasFicticiasPaso3) { index, consulta ->
-                    ConsultaCard(
-                        consulta = consulta,
-                        numero = index + 1,
-                        isBaseline = isBaseline
-                    )
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            contentDescription = "Cargando historial clínico desde base de datos Room"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (isBaseline) {
+                        // RENDERIZADO BASELINE: 220 registros cargados monolíticamente
+                        itemsIndexed(
+                            items = baselineItems,
+                            key = { _, item -> item.id }
+                        ) { index, consulta ->
+                            ConsultaEntityCard(
+                                consulta = consulta,
+                                numero = index + 1,
+                                isBaseline = true
+                            )
+                        }
+                    } else {
+                        // RENDERIZADO OPTIMIZED: Paging 3 (páginas de 20 elementos)
+                        items(
+                            count = pagingItems.itemCount,
+                            key = pagingItems.itemKey { it.id }
+                        ) { index ->
+                            val item = pagingItems[index]
+                            if (item != null) {
+                                ConsultaEntityCard(
+                                    consulta = item,
+                                    numero = index + 1,
+                                    isBaseline = false
+                                )
+                            }
+                        }
+
+                        // Indicador de carga al solicitar la siguiente página de 20 elementos
+                        when (pagingItems.loadState.append) {
+                            is LoadState.Loading -> {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                            .semantics {
+                                                liveRegion = LiveRegionMode.Polite
+                                                contentDescription = "Cargando página siguiente de 20 consultas..."
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                                    }
+                                }
+                            }
+                            is LoadState.Error -> {
+                                item {
+                                    Text(
+                                        text = "Error al cargar más consultas",
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+                                }
+                            }
+                            else -> {}
+                        }
+                    }
                 }
             }
         }
@@ -137,17 +189,27 @@ fun HistorialClinicoScreen(onBack: () -> Unit) {
 }
 
 /**
- * Banner que explica el modo de red activo para facilitar la inspección.
+ * Banner informativo que detalla la estrategia de Room y Paging activa.
  */
 @Composable
-private fun NetworkFlavorBanner(isBaseline: Boolean) {
+private fun RoomFlavorBanner(
+    isBaseline: Boolean,
+    totalRegistros: Int,
+    tiempoConsultaMs: Long?
+) {
     val backgroundColor = if (isBaseline) Color(0xFFFFF3CD) else Color(0xFFD4EDDA)
     val contentColor = if (isBaseline) Color(0xFF664D00) else Color(0xFF155724)
-    val titulo = if (isBaseline) "⚗️ BASELINE: Red sin optimizar (Didáctico)" else "✅ OPTIMIZED: Red optimizada (WebP + Caché)"
-    val detalle = if (isBaseline)
-        "Descargando 8 fotos originales (~2.4 MB c/u). Caché desactivada para permitir repeticiones en Network Inspector."
+    val titulo = if (isBaseline)
+        "⚗️ BASELINE: Room sin paginación (Didáctico)"
     else
-        "Descargando 8 fotos WebP 480px (~150 KB c/u). Carga diferida y caché de disco/memoria activadas."
+        "✅ OPTIMIZED: Room + Paging 3 (Páginas de 20)"
+
+    val detalle = if (isBaseline) {
+        val extra = if (tiempoConsultaMs != null) " Tiempo de consulta: ${tiempoConsultaMs}ms." else ""
+        "Carga monolítica de $totalRegistros registros en memoria de una sola vez.$extra Caché de imágenes desactivada."
+    } else {
+        "Paginación reactiva de $totalRegistros registros indexados por fecha. Caché de imágenes y WebP activos."
+    }
 
     Surface(
         color = backgroundColor,
@@ -172,32 +234,31 @@ private fun NetworkFlavorBanner(isBaseline: Boolean) {
 }
 
 /**
- * Tarjeta individual de consulta médica con descarga real por HTTP mediante Coil.
+ * Tarjeta para representar una [ConsultaEntity] de Room con su imagen HTTP respectiva.
  */
 @Composable
-private fun ConsultaCard(
-    consulta: ConsultaFicticia,
+private fun ConsultaEntityCard(
+    consulta: ConsultaEntity,
     numero: Int,
     isBaseline: Boolean
 ) {
     val context = LocalContext.current
+    val fotoUrl = NetworkConfig.getFotoMedicoUrl(consulta.medicoId)
     val descripcionAccesible =
-        "Consulta $numero: ${consulta.medico}, especialidad ${consulta.especialidad}, " +
-        "fecha ${consulta.fecha}. Diagnóstico: ${consulta.diagnostico}"
+        "Consulta $numero: ${consulta.medicoNombre}, especialidad ${consulta.especialidad}, " +
+        "fecha ${consulta.fechaTexto}. Diagnóstico: ${consulta.diagnostico}. Tratamiento: ${consulta.tratamiento}"
 
-    // Configuración del ImageRequest según la variante
+    // Configuración de Coil según la variante
     val imageRequest = if (isBaseline) {
-        // BASELINE: fuerza petición de red real deshabilitando caché de disco y memoria
         ImageRequest.Builder(context)
-            .data(consulta.fotoUrl)
+            .data(fotoUrl)
             .crossfade(false)
             .memoryCachePolicy(CachePolicy.DISABLED)
             .diskCachePolicy(CachePolicy.DISABLED)
             .build()
     } else {
-        // OPTIMIZED: aprovecha caché de disco/memoria, crossfade suave y redimensionamiento
         ImageRequest.Builder(context)
-            .data(consulta.fotoUrl)
+            .data(fotoUrl)
             .crossfade(true)
             .size(Size(480, 480))
             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -217,7 +278,7 @@ private fun ConsultaCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Contenedor de la fotografía con estados de carga y error accesibles
+            // Avatar del médico con descarga HTTP real
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -227,17 +288,16 @@ private fun ConsultaCard(
             ) {
                 SubcomposeAsyncImage(
                     model = imageRequest,
-                    contentDescription = "Fotografía de ${consulta.medico}",
+                    contentDescription = "Fotografía de ${consulta.medicoNombre}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                     loading = {
-                        // Estado de carga accesible anunciado por TalkBack
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .semantics {
                                     liveRegion = LiveRegionMode.Polite
-                                    contentDescription = "Cargando fotografía de ${consulta.medico}"
+                                    contentDescription = "Cargando foto de ${consulta.medicoNombre}"
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -248,13 +308,12 @@ private fun ConsultaCard(
                         }
                     },
                     error = {
-                        // Estado de error si el servidor HTTP local no está iniciado
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(MaterialTheme.colorScheme.errorContainer)
                                 .semantics {
-                                    contentDescription = "Error al conectar con servidor local de imágenes para ${consulta.medico}"
+                                    contentDescription = "Foto no disponible para ${consulta.medicoNombre}"
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -272,37 +331,52 @@ private fun ConsultaCard(
             Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = consulta.medico,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = consulta.medicoNombre,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Text(
+                        text = "#$numero",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 Text(
                     text = consulta.especialidad,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
+
                 Spacer(modifier = Modifier.height(2.dp))
+
                 Text(
-                    text = consulta.fecha,
+                    text = "📅 ${consulta.fechaTexto}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
                 Text(
                     text = consulta.diagnostico,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+
+                Text(
+                    text = "Rx: ${consulta.tratamiento}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
         }
-    }
-}
-
-@Preview(showBackground = true, name = "Historial Clínico — Preview")
-@Composable
-fun HistorialClinicoScreenPreview() {
-    EPE3_MovilesTheme {
-        HistorialClinicoScreen(onBack = {})
     }
 }

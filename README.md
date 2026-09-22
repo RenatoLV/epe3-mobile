@@ -13,7 +13,7 @@ optimización de rendimiento con evidencias reales obtenidas desde Android Studi
 | **1** | Interfaz base con navegación entre 4 pantallas | ✅ Completada |
 | **2** | Variantes `baseline` y `optimized` (productFlavors) | ✅ Completada |
 | **3** | Historial Clínico con imágenes HTTP reales + servidor Node | ✅ Completada |
-| **4** | Room + Paging 3 con 200+ registros e índices | 🔲 Pendiente |
+| **4** | Room + Paging 3 con 200+ registros e índices | ✅ Completada |
 | **5** | Clínicas Cercanas con permisos GPS y ciclo de vida | 🔲 Pendiente |
 | **6** | Videoconsulta con WebRTC real (negociación SDP) | 🔲 Pendiente |
 
@@ -204,4 +204,30 @@ en producción.
 | :--- | :--- |
 | `app/build.gradle.kts` | `flavorDimensions`, `productFlavors`, `buildConfig = true` |
 | `ui/screens/MiConsultaScreen.kt` | `FlavorBanner` con `BuildConfig.FLAVOR` |
+
+---
+
+## Fase 3 y 4: Persistencia con Room y Paging 3
+
+### Arquitectura de Datos
+
+- **Entidad:** `ConsultaEntity` con índice explícito en la columna `fecha` (`@Index(value = ["fecha"])`) para optimizar ordenamientos cronológicos inversos.
+- **DAO:** `ConsultaDao` con:
+  * `insertAll(consultas: List<ConsultaEntity>)` para inserción masiva reproducible.
+  * `getAllConsultas(): List<ConsultaEntity>` (Baseline didáctico: carga los 220 registros completos en memoria).
+  * `getPagingConsultas(): PagingSource<Int, ConsultaEntity>` (Optimized: Paging 3 en páginas de 20 elementos bajo demanda).
+- **Conjunto de datos reproducible:** `ConsultaFicticiaDataGenerator` genera exactamente **220 consultas clínicas ficticias** con diagnósticos y tratamientos realistas distribuidos entre 8 médicos.
+- **Base de datos:** `AppDatabase` (SQLite/Room) con pre-poblado automático de las 220 consultas.
+- **Imágenes HTTP:** Cada consulta enlaza con `NetworkConfig.getFotoMedicoUrl(medicoId)` servida por `scripts/image_server.js` (fotos originales en baseline, WebP en optimized).
+
+### Comparación Medible entre Variantes
+
+| Característica | Baseline (Didáctico) | Optimized |
+| :--- | :--- | :--- |
+| **Estrategia de carga BD** | Monolítica (`getAllConsultas`) | Paginada con Paging 3 (`getPagingConsultas`) |
+| **Registros en memoria** | 220 entidades instanciadas a la vez | 20 entidades por página activa |
+| **Índices en BD** | Presente en tabla | Presente y aprovechado por el cursor de Paging |
+| **Imágenes HTTP** | Originales (~2.4 MB) sin caché | WebP 480px (~150 KB) con caché |
+| **Cálculo de tiempo** | Mide y muestra tiempo de consulta completo en UI | Carga instantánea de página visible |
+
 
