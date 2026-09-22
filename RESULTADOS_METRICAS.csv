@@ -18,5 +18,11 @@ Memoria_Heap_6_Ciclos,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE
 Memoria_Heap_6_Ciclos,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,PENDIENTE,PENDIENTE,Heap retenido tras 6 ciclos (Fase 6)
 Consumo_Bateria_GPS,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%/hora,N/A,PENDIENTE,Medición con Energy Profiler (Fase 5)
 Consumo_Bateria_GPS,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%/hora,PENDIENTE,PENDIENTE,Medición con Energy Profiler (Fase 5)
+Actualizaciones_GPS_1_Minuto,baseline,Emulador_Pixel6_API34,GPS_Hardware,Frecuencia_2s,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,actualizaciones,N/A,PENDIENTE,Conteo de logs en 60 segundos de pantalla activa
+Actualizaciones_GPS_1_Minuto,optimized,Emulador_Pixel6_API34,GPS_Red,Frecuencia_30s,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,actualizaciones,PENDIENTE,PENDIENTE,Conteo de logs en 60 segundos de pantalla activa
+Intervalo_GPS_Observado_Segundos,baseline,Emulador_Pixel6_API34,GPS_Hardware,Frecuencia_2s,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,s,N/A,PENDIENTE,Tiempo observado entre dos actualizaciones consecutivas
+Intervalo_GPS_Observado_Segundos,optimized,Emulador_Pixel6_API34,GPS_Red,Frecuencia_30s,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,s,PENDIENTE,PENDIENTE,Tiempo observado entre dos actualizaciones consecutivas
+Nivel_Energia_Profiler_GPS,baseline,Emulador_Pixel6_API34,GPS_Hardware,Frecuencia_2s,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,nivel,N/A,PENDIENTE,Nivel cualitativo en Energy Profiler (Light/Medium/Heavy)
+Nivel_Energia_Profiler_GPS,optimized,Emulador_Pixel6_API34,GPS_Red,Frecuencia_30s,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,nivel,PENDIENTE,PENDIENTE,Nivel cualitativo en Energy Profiler (Light/Medium/Heavy)
 Arranque_Cold_Start,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,ms,N/A,PENDIENTE,Medición con App Startup Trace
 Arranque_Cold_Start,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,ms,PENDIENTE,PENDIENTE,Medición con App Startup Trace

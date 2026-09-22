@@ -14,7 +14,7 @@ optimización de rendimiento con evidencias reales obtenidas desde Android Studi
 | **2** | Variantes `baseline` y `optimized` (productFlavors) | ✅ Completada |
 | **3** | Historial Clínico con imágenes HTTP reales + servidor Node | ✅ Completada |
 | **4** | Room + Paging 3 con 200+ registros e índices | ✅ Completada |
-| **5** | Clínicas Cercanas con permisos GPS y ciclo de vida | 🔲 Pendiente |
+| **5** | Clínicas Cercanas con permisos GPS y ciclo de vida | ✅ Completada |
 | **6** | Videoconsulta con WebRTC real (negociación SDP) | 🔲 Pendiente |
 
 ---
@@ -229,5 +229,27 @@ en producción.
 | **Índices en BD** | Presente en tabla | Presente y aprovechado por el cursor de Paging |
 | **Imágenes HTTP** | Originales (~2.4 MB) sin caché | WebP 480px (~150 KB) con caché |
 | **Cálculo de tiempo** | Mide y muestra tiempo de consulta completo en UI | Carga instantánea de página visible |
+
+---
+
+## Fase 5: Clínicas Cercanas y Gestión de Energía GPS
+
+### Características Técnicas
+
+- **Biblioteca:** Google Play Services Location (`play-services-location:21.3.0`).
+- **Permisos:** `ACCESS_FINE_LOCATION` y `ACCESS_COARSE_LOCATION` solicitados en tiempo de ejecución en Compose con `rememberLauncherForActivityResult`.
+- **Cálculo Geodésico:** Fórmula matemática de Haversine (`DistanceCalculator`) para calcular la distancia real a 6 clínicas de Santiago de Chile sin depender de servicios de terceros.
+- **Ciclo de vida estricto:** `DisposableEffect` con `onDispose` para garantizar que el sensor GPS se apague al salir de la pantalla y nunca consuma batería en segundo plano.
+
+### Comparativa de Comportamiento
+
+| Parámetro | Baseline (Didáctico) | Optimized |
+| :--- | :--- | :--- |
+| **Prioridad GPS** | `PRIORITY_HIGH_ACCURACY` (hardware continuo) | `PRIORITY_BALANCED_POWER_ACCURACY` (bajo impacto) |
+| **Intervalo de sondeo** | **2 segundos** (2.000 ms) | **30 segundos** (30.000 ms) |
+| **Impacto en Energy Profiler** | Nivel constante "Medium/High" por sensor GPS activo | Nivel "Light" con pulsos aislados cada 30s |
+| **Filtro Logcat** | `tag:EPE3_Location` muestra logs cada 2s | `tag:EPE3_Location` muestra logs cada 30s |
+| **Liberación de sensor** | Log al presionar botón atrás | Log en `onDispose` del Composable |
+
 
 

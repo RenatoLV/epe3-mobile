@@ -84,6 +84,9 @@ dependencies {
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
 
+    // Google Play Services Location (Paso 5)
+    implementation(libs.play.services.location)
+
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")

@@ -5,6 +5,10 @@
     <!-- Permiso de red para la descarga real de imágenes por HTTP en pruebas de rendimiento -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Permisos de ubicación para el módulo Clínicas Cercanas (Paso 5) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
