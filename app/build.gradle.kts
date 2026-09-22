@@ -87,6 +87,9 @@ dependencies {
     // Google Play Services Location (Paso 5)
     implementation(libs.play.services.location)
 
+    // WebRTC (Paso 6)
+    implementation(libs.stream.webrtc.android)
+
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")

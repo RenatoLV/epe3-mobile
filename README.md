@@ -14,8 +14,7 @@ optimización de rendimiento con evidencias reales obtenidas desde Android Studi
 | **2** | Variantes `baseline` y `optimized` (productFlavors) | ✅ Completada |
 | **3** | Historial Clínico con imágenes HTTP reales + servidor Node | ✅ Completada |
 | **4** | Room + Paging 3 con 200+ registros e índices | ✅ Completada |
-| **5** | Clínicas Cercanas con permisos GPS y ciclo de vida | ✅ Completada |
-| **6** | Videoconsulta con WebRTC real (negociación SDP) | 🔲 Pendiente |
+| **6** | Videoconsulta con WebRTC real (negociación SDP loopback) | ✅ Completada |
 
 ---
 
@@ -250,6 +249,31 @@ en producción.
 | **Impacto en Energy Profiler** | Nivel constante "Medium/High" por sensor GPS activo | Nivel "Light" con pulsos aislados cada 30s |
 | **Filtro Logcat** | `tag:EPE3_Location` muestra logs cada 2s | `tag:EPE3_Location` muestra logs cada 30s |
 | **Liberación de sensor** | Log al presionar botón atrás | Log en `onDispose` del Composable |
+
+---
+
+## Fase 6: Videoconsulta con WebRTC Real en Loopback y Evaluación de CPU
+
+### Características Técnicas
+
+- **Biblioteca:** Stream WebRTC Android (`io.getstream:stream-webrtc-android:1.3.10`), compilada y verificada contra Kotlin 2.2.10, AGP 9.2.1 y compileSdk 36.1.
+- **Permisos:** `CAMERA` y `RECORD_AUDIO` solicitados en runtime antes de iniciar la llamada.
+- **Loopback Local:** Dos instancias de `PeerConnection` (`localPeer` y `remotePeer`) interconectadas localmente sin necesidad de servidor de señalización externo.
+- **Pipeline Multimedia:** `PeerConnectionFactory`, `EglBase`, `DefaultVideoEncoderFactory`, `DefaultVideoDecoderFactory`, capturador de cámara real (con fallback automático a video dummy en emuladores sin hardware de cámara) y pista de audio local.
+- **Negociación SDP Real:** `createOffer`, `setLocalDescription`, `setRemoteDescription`, `createAnswer`, intercambio bidireccional de `IceCandidate`.
+- **Máquina de Estados Accesible:** `Idle`, `SolicitandoPermisos`, `Inicializando`, `CreandoOferta`, `IntercambiandoIce`, `Conectada`, `Finalizada`, `Error`.
+- **Botones Accesibles:** "Iniciar videoconsulta" y "Finalizar videoconsulta".
+- **Liberación Estricta:** `DisposableEffect` y `onCleared()` liberan al 100% capturadores, pistas de video/audio, PeerConnections, fábrica y contexto OpenGL.
+
+### Comparativa de Concurrencia entre Variantes
+
+| Aspecto | Baseline (Didáctico) | Optimized |
+| :--- | :--- | :--- |
+| **Hilo de inicialización y negociación** | **Hilo Principal (Main Thread)** | **Dispatchers.Default** (Pool de subprocesos) |
+| **Impacto en UI (Jank / Congelamiento)** | Bloqueo observable de fotogramas (Jank) medible en System Trace | 0 fotogramas perdidos por negociación; interfaz totalmente fluida |
+| **Carga de CPU** | Pico concentrado en el hilo de renderizado | Carga distribuida eficientemente en hilos de trabajo |
+| **Filtro Logcat** | `tag:EPE3_WebRTC` | `tag:EPE3_WebRTC` |
+| **Guía de medición** | Ver [GUIA_CPU_WEBRTC.md](GUIA_CPU_WEBRTC.md) | Ver [GUIA_CPU_WEBRTC.md](GUIA_CPU_WEBRTC.md) |
 
 
 
