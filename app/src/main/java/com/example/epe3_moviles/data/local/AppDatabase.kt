@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 @Database(
     entities = [ConsultaEntity::class],
     version = 1,
-    exportSchema = false
+    exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
 
@@ -33,19 +33,21 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "telemedicina_clinica.db"
+                    "telemedicina_clinica.db",
                 )
-                    .addCallback(object : Callback() {
-                        override fun onCreate(db: SupportSQLiteDatabase) {
-                            super.onCreate(db)
-                            // Pre-poblar los 220 registros en background al crear la BD
-                            CoroutineScope(Dispatchers.IO).launch {
-                                INSTANCE?.consultaDao()?.insertAll(
-                                    ConsultaFicticiaDataGenerator.generateConsultas(220)
-                                )
+                    .addCallback(
+                        object : Callback() {
+                            override fun onCreate(db: SupportSQLiteDatabase) {
+                                super.onCreate(db)
+                                // Pre-poblar los 220 registros en background al crear la BD
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    INSTANCE?.consultaDao()?.insertAll(
+                                        ConsultaFicticiaDataGenerator.generateConsultas(220),
+                                    )
+                                }
                             }
-                        }
-                    })
+                        },
+                    )
                     .build()
                 INSTANCE = instance
                 instance
@@ -60,7 +62,7 @@ abstract class AppDatabase : RoomDatabase() {
             val count = database.consultaDao().getCount()
             if (count < 200) {
                 database.consultaDao().insertAll(
-                    ConsultaFicticiaDataGenerator.generateConsultas(220)
+                    ConsultaFicticiaDataGenerator.generateConsultas(220),
                 )
             }
         }

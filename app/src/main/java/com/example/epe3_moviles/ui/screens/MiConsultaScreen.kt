@@ -45,8 +45,9 @@ import com.example.epe3_moviles.ui.theme.EPE3_MovilesTheme
 fun MiConsultaScreen(
     onNavigateToHistorial: () -> Unit,
     onNavigateToVideoconsulta: () -> Unit,
-    onNavigateToClinicas: () -> Unit
+    onNavigateToClinicas: () -> Unit,
 ) {
+    @Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
     val isBaseline = BuildConfig.FLAVOR == "baseline"
 
     Scaffold(
@@ -56,13 +57,13 @@ fun MiConsultaScreen(
                     Text(
                         text = "Mi Consulta",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
             )
         }
     ) { innerPadding ->
@@ -139,7 +140,9 @@ fun MiConsultaScreen(
  * al navegar a esta pantalla.
  */
 @Composable
-private fun FlavorBanner(isBaseline: Boolean) {
+private fun FlavorBanner(
+    isBaseline: Boolean,
+) {
     val label: String
     val description: String
     val backgroundColor: Color
@@ -304,7 +307,7 @@ private fun MiConsultaBaselinePreview() {
         MiConsultaScreen(
             onNavigateToHistorial = {},
             onNavigateToVideoconsulta = {},
-            onNavigateToClinicas = {}
+            onNavigateToClinicas = {},
         )
     }
 }

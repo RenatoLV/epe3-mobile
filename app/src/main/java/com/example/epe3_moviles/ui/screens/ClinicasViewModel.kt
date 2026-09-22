@@ -36,12 +36,12 @@ sealed interface ClinicasLocationState {
         val precisionMetros: Float,
         val horaTexto: String,
         val conteoActualizaciones: Int,
-        val clinicasConDistancia: List<Pair<ClinicaModel, String>>
+        val clinicasConDistancia: List<Pair<ClinicaModel, String>>,
     ) : ClinicasLocationState
     data class Error(val mensaje: String) : ClinicasLocationState
     data class UbicacionDetenida(
         val ultimaHora: String,
-        val totalActualizaciones: Int
+        val totalActualizaciones: Int,
     ) : ClinicasLocationState
 }
 
@@ -62,10 +62,11 @@ sealed interface ClinicasLocationState {
  */
 class ClinicasViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val TAG = "EPE3_Location"
+    private val tag = "EPE3_Location"
     private val fusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(application)
 
+    @Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
     val isBaseline: Boolean = BuildConfig.FLAVOR == "baseline"
 
     private val _state = MutableStateFlow<ClinicasLocationState>(ClinicasLocationState.PermisoRequerido)
@@ -120,9 +121,9 @@ class ClinicasViewModel(application: Application) : AndroidViewModel(application
             fusedLocationClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
             val variante = if (isBaseline) "BASELINE" else "OPTIMIZED"
             Log.i(
-                TAG,
+                tag,
                 "[$variante] Solicitud GPS INICIADA - Prioridad: $prioridadNombre, " +
-                "Intervalo: ${intervaloMillis / 1000}s"
+                "Intervalo: ${intervaloMillis / 1000}s",
             )
         } catch (e: SecurityException) {
             _state.value = ClinicasLocationState.Error("Permiso de ubicación revocado: ${e.message}")
@@ -132,7 +133,7 @@ class ClinicasViewModel(application: Application) : AndroidViewModel(application
     private fun procesarNuevaUbicacion(
         location: Location,
         prioridadNombre: String,
-        intervaloMillis: Long
+        intervaloMillis: Long,
     ) {
         totalActualizaciones++
         val horaActual = timeFormat.format(Date())
@@ -141,28 +142,32 @@ class ClinicasViewModel(application: Application) : AndroidViewModel(application
 
         // Registro estructurado exigido para Logcat
         Log.i(
-            TAG,
+            tag,
             "[$variante] Actualización GPS #$totalActualizaciones - " +
             "Prioridad: $prioridadNombre, " +
             "Intervalo solicitado: ${intervaloMillis / 1000}s, " +
             "Hora: $horaActual, " +
             "Lat: ${location.latitude}, Lon: ${location.longitude}, " +
-            "Precisión: ${location.accuracy}m"
+            "Precisión: ${location.accuracy}m",
         )
 
         // Calcular distancias reales respecto a las clínicas ficticias de Santiago
-        val clinicasConDistancia = clinicasSantiagoFicticias.map { clinica ->
+        val clinicasConDistancia = clinicasSantiagoFicticias.asSequence().map { clinica ->
             val distKm = DistanceCalculator.calcularDistanciaKm(
-                location.latitude, location.longitude,
-                clinica.latitud, clinica.longitud
+                location.latitude,
+                location.longitude,
+                clinica.latitud,
+                clinica.longitud,
             )
             clinica to DistanceCalculator.formatearDistancia(distKm)
         }.sortedBy { (clinica, _) ->
             DistanceCalculator.calcularDistanciaKm(
-                location.latitude, location.longitude,
-                clinica.latitud, clinica.longitud
+                location.latitude,
+                location.longitude,
+                clinica.latitud,
+                clinica.longitud,
             )
-        }
+        }.toList()
 
         _state.value = ClinicasLocationState.UbicacionDisponible(
             latitud = location.latitude,
@@ -170,7 +175,7 @@ class ClinicasViewModel(application: Application) : AndroidViewModel(application
             precisionMetros = location.accuracy,
             horaTexto = horaActual,
             conteoActualizaciones = totalActualizaciones,
-            clinicasConDistancia = clinicasConDistancia
+            clinicasConDistancia = clinicasConDistancia,
         )
     }
 
@@ -184,13 +189,13 @@ class ClinicasViewModel(application: Application) : AndroidViewModel(application
             locationCallback = null
             val variante = if (isBaseline) "BASELINE" else "OPTIMIZED"
             Log.i(
-                TAG,
+                tag,
                 "[$variante] Detención confirmada ($origenCierre) - Actualizaciones GPS finalizadas. " +
-                "Total capturadas en esta sesión: $totalActualizaciones"
+                "Total capturadas en esta sesión: $totalActualizaciones",
             )
             _state.value = ClinicasLocationState.UbicacionDetenida(
                 ultimaHora = ultimaHoraActualizacion,
-                totalActualizaciones = totalActualizaciones
+                totalActualizaciones = totalActualizaciones,
             )
         }
     }

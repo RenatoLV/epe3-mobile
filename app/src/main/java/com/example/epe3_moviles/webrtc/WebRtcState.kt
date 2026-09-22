@@ -23,7 +23,7 @@ sealed interface WebRtcState {
         val tiempoConectadaSegundos: Long = 0L,
         val videoActivo: Boolean = true,
         val audioActivo: Boolean = true,
-        val infoCamara: String = "Cámara activa"
+        val infoCamara: String = "Cámara activa",
     ) : WebRtcState
     data class Finalizada(val motivo: String = "Videoconsulta finalizada por el usuario") : WebRtcState
     data class Error(val mensaje: String, val esRecuperable: Boolean = false) : WebRtcState

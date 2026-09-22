@@ -2,9 +2,6 @@ package com.example.epe3_moviles.webrtc
 
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.webrtc.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -96,11 +93,9 @@ class WebRtcSessionManager(private val context: Context) {
         logTimestamp("Pista de audio local creada con éxito.")
 
         // 2. Video Track con fallback para emuladores
-        var videoActivo = false
-        var infoCamara = "Sin cámara disponible"
-
+        val videoActivo = true
         val capturer = createCameraCapturer()
-        if (capturer != null) {
+        val infoCamara = if (capturer != null) {
             videoCapturer = capturer
             try {
                 val surfaceHelper = SurfaceTextureHelper.create("EPE3_CaptureThread", egl.eglBaseContext)
@@ -113,9 +108,8 @@ class WebRtcSessionManager(private val context: Context) {
                 val vTrack = factory.createVideoTrack("ARDAMSv0", vSource)
                 vTrack.setEnabled(true)
                 localVideoTrack = vTrack
-                videoActivo = true
-                infoCamara = "Cámara activa (640x480 @ 30fps)"
                 logTimestamp("Pista de video local iniciada exitosamente con capturador de cámara.")
+                "Cámara activa (640x480 @ 30fps)"
             } catch (e: Exception) {
                 logTimestamp("Aviso: Falló la inicialización de captura de video (${e.message}). Activando fallback de video dummy.")
                 val dummySource = factory.createVideoSource(false)
@@ -123,8 +117,7 @@ class WebRtcSessionManager(private val context: Context) {
                 val vTrack = factory.createVideoTrack("ARDAMSv0", dummySource)
                 vTrack.setEnabled(true)
                 localVideoTrack = vTrack
-                videoActivo = true
-                infoCamara = "Fallback video dummy (Emulador sin sensor físico)"
+                "Fallback video dummy (Emulador sin sensor físico)"
             }
         } else {
             logTimestamp("Aviso: No se detectó cámara física ni virtual. Creando fuente dummy para permitir negociación SDP.")
@@ -133,8 +126,7 @@ class WebRtcSessionManager(private val context: Context) {
             val vTrack = factory.createVideoTrack("ARDAMSv0", dummySource)
             vTrack.setEnabled(true)
             localVideoTrack = vTrack
-            videoActivo = true
-            infoCamara = "Fallback video dummy (Emulador)"
+            "Fallback video dummy (Emulador)"
         }
 
         return Pair(videoActivo, infoCamara)
@@ -173,7 +165,7 @@ class WebRtcSessionManager(private val context: Context) {
      * Inicia la llamada en loopback negociando SDP y candidatos ICE entre dos PeerConnections locales.
      */
     fun startLoopbackCall(
-        onStateChange: (WebRtcState) -> Unit
+        onStateChange: (WebRtcState) -> Unit,
     ) {
         if (isCallActive) {
             logTimestamp("Llamada loopback ya activa.")
@@ -274,7 +266,7 @@ class WebRtcSessionManager(private val context: Context) {
         val lp = factory.createPeerConnection(rtcConfig, localObserver)
         val rp = factory.createPeerConnection(rtcConfig, remoteObserver)
 
-        if (lp == null || rp == null) {
+        if ((lp == null) || (rp == null)) {
             logTimestamp("Error creando instancias de PeerConnection.")
             onStateChange(WebRtcState.Error("No se pudo instanciar PeerConnection"))
             return
@@ -301,82 +293,100 @@ class WebRtcSessionManager(private val context: Context) {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         }
 
-        lp.createOffer(object : SimpleSdpObserver("localPeer.createOffer") {
-            override fun onCreateSuccess(desc: SessionDescription?) {
-                if (desc == null) {
-                    onStateChange(WebRtcState.Error("Oferta SDP nula"))
-                    return
-                }
-                val offerSdp = desc
-                logTimestamp("Oferta SDP creada exitosamente (${offerSdp.type}). Estableciendo localDescription en localPeer...")
-                lp.setLocalDescription(object : SimpleSdpObserver("localPeer.setLocalDesc") {
-                    override fun onSetSuccess() {
-                        logTimestamp("LocalDescription establecida con éxito en localPeer. Estableciendo remoteDescription en remotePeer...")
-                        rp.setRemoteDescription(object : SimpleSdpObserver("remotePeer.setRemoteDesc") {
+        lp.createOffer(
+            object : SimpleSdpObserver("localPeer.createOffer") {
+                override fun onCreateSuccess(desc: SessionDescription?) {
+                    if (desc == null) {
+                        onStateChange(WebRtcState.Error("Oferta SDP nula"))
+                        return
+                    }
+                    val offerSdp = desc
+                    logTimestamp("Oferta SDP creada exitosamente (${offerSdp.type}). Estableciendo localDescription en localPeer...")
+                    lp.setLocalDescription(
+                        object : SimpleSdpObserver("localPeer.setLocalDesc") {
                             override fun onSetSuccess() {
-                                logTimestamp("RemoteDescription establecida con éxito en remotePeer. Drenando ICE pendientes...")
-                                drainRemoteCandidates()
+                                logTimestamp("LocalDescription establecida con éxito en localPeer. Estableciendo remoteDescription en remotePeer...")
+                                rp.setRemoteDescription(
+                                    object : SimpleSdpObserver("remotePeer.setRemoteDesc") {
+                                        override fun onSetSuccess() {
+                                            logTimestamp("RemoteDescription establecida con éxito en remotePeer. Drenando ICE pendientes...")
+                                            drainRemoteCandidates()
 
-                                // Paso 2: Crear Respuesta SDP (createAnswer)
-                                logTimestamp("Creando respuesta SDP (createAnswer) en remotePeer...")
-                                rp.createAnswer(object : SimpleSdpObserver("remotePeer.createAnswer") {
-                                    override fun onCreateSuccess(desc: SessionDescription?) {
-                                        if (desc == null) {
-                                            onStateChange(WebRtcState.Error("Respuesta SDP nula"))
-                                            return
+                                            // Paso 2: Crear Respuesta SDP (createAnswer)
+                                            logTimestamp("Creando respuesta SDP (createAnswer) en remotePeer...")
+                                            rp.createAnswer(
+                                                object : SimpleSdpObserver("remotePeer.createAnswer") {
+                                                    override fun onCreateSuccess(desc: SessionDescription?) {
+                                                        if (desc == null) {
+                                                            onStateChange(WebRtcState.Error("Respuesta SDP nula"))
+                                                            return
+                                                        }
+                                                        val answerSdp = desc
+                                                        logTimestamp("Respuesta SDP creada exitosamente (${answerSdp.type}).")
+                                                        rp.setLocalDescription(
+                                                            object : SimpleSdpObserver("remotePeer.setLocalDesc") {
+                                                                override fun onSetSuccess() {
+                                                                    logTimestamp("LocalDescription establecida en remotePeer. Estableciendo remoteDescription en localPeer...")
+                                                                    lp.setRemoteDescription(
+                                                                        object : SimpleSdpObserver("localPeer.setRemoteDesc") {
+                                                                            override fun onSetSuccess() {
+                                                                                logTimestamp("RemoteDescription establecida en localPeer. Drenando ICE locales pendientes...")
+                                                                                drainLocalCandidates()
+                                                                                logTimestamp("Negociación SDP completada. Esperando estabilización ICE loopback...")
+                                                                            }
+
+                                                                            override fun onSetFailure(err: String?) {
+                                                                                logTimestamp("Falla al setear remoteDescription en localPeer: $err")
+                                                                                onStateChange(WebRtcState.Error("Falla SDP en localPeer: $err"))
+                                                                            }
+                                                                        },
+                                                                        answerSdp,
+                                                                    )
+                                                                }
+
+                                                                override fun onSetFailure(err: String?) {
+                                                                    logTimestamp("Error al setear localDescription en remotePeer: $err")
+                                                                    onStateChange(WebRtcState.Error("Falla SDP en remotePeer: $err"))
+                                                                }
+                                                            },
+                                                            answerSdp,
+                                                        )
+                                                    }
+
+                                                    override fun onCreateFailure(err: String?) {
+                                                        logTimestamp("Error creando respuesta SDP: $err")
+                                                        onStateChange(WebRtcState.Error("Falla createAnswer: $err"))
+                                                    }
+                                                },
+                                                sdpConstraints,
+                                            )
                                         }
-                                        val answerSdp = desc
-                                        logTimestamp("Respuesta SDP creada exitosamente (${answerSdp.type}).")
-                                        rp.setLocalDescription(object : SimpleSdpObserver("remotePeer.setLocalDesc") {
-                                            override fun onSetSuccess() {
-                                                logTimestamp("LocalDescription establecida en remotePeer. Estableciendo remoteDescription en localPeer...")
-                                                lp.setRemoteDescription(object : SimpleSdpObserver("localPeer.setRemoteDesc") {
-                                                    override fun onSetSuccess() {
-                                                        logTimestamp("RemoteDescription establecida en localPeer. Drenando ICE locales pendientes...")
-                                                        drainLocalCandidates()
-                                                        logTimestamp("Negociación SDP completada. Esperando estabilización ICE loopback...")
-                                                    }
 
-                                                    override fun onSetFailure(err: String?) {
-                                                        logTimestamp("Falla al setear remoteDescription en localPeer: $err")
-                                                        onStateChange(WebRtcState.Error("Falla SDP en localPeer: $err"))
-                                                    }
-                                                }, answerSdp)
-                                            }
-
-                                            override fun onSetFailure(err: String?) {
-                                                logTimestamp("Error al setear localDescription en remotePeer: $err")
-                                                onStateChange(WebRtcState.Error("Falla SDP en remotePeer: $err"))
-                                            }
-                                        }, answerSdp)
-                                    }
-
-                                    override fun onCreateFailure(err: String?) {
-                                        logTimestamp("Error creando respuesta SDP: $err")
-                                        onStateChange(WebRtcState.Error("Falla createAnswer: $err"))
-                                    }
-                                }, sdpConstraints)
+                                        override fun onSetFailure(err: String?) {
+                                            logTimestamp("Error al setear remoteDescription en remotePeer: $err")
+                                            onStateChange(WebRtcState.Error("Falla remoteDescription en remotePeer: $err"))
+                                        }
+                                    },
+                                    offerSdp,
+                                )
                             }
 
                             override fun onSetFailure(err: String?) {
-                                logTimestamp("Error al setear remoteDescription en remotePeer: $err")
-                                onStateChange(WebRtcState.Error("Falla remoteDescription en remotePeer: $err"))
+                                logTimestamp("Error al setear localDescription en localPeer: $err")
+                                onStateChange(WebRtcState.Error("Falla localDescription en localPeer: $err"))
                             }
-                        }, offerSdp)
-                    }
+                        },
+                        offerSdp,
+                    )
+                }
 
-                    override fun onSetFailure(err: String?) {
-                        logTimestamp("Error al setear localDescription en localPeer: $err")
-                        onStateChange(WebRtcState.Error("Falla localDescription en localPeer: $err"))
-                    }
-                }, offerSdp)
-            }
-
-            override fun onCreateFailure(err: String?) {
-                logTimestamp("Error creando oferta SDP: $err")
-                onStateChange(WebRtcState.Error("Error creando oferta SDP: $err"))
-            }
-        }, sdpConstraints)
+                override fun onCreateFailure(err: String?) {
+                    logTimestamp("Error creando oferta SDP: $err")
+                    onStateChange(WebRtcState.Error("Error creando oferta SDP: $err"))
+                }
+            },
+            sdpConstraints,
+        )
     }
 
     private fun drainRemoteCandidates() {
@@ -484,7 +494,7 @@ class WebRtcSessionManager(private val context: Context) {
  * Clase base auxiliar para observar eventos SDP de WebRTC de forma concisa.
  */
 private open class SimpleSdpObserver(
-    private val observerName: String = "WebRtcSDP"
+    private val observerName: String = "WebRtcSDP",
 ) : SdpObserver {
     override fun onCreateSuccess(desc: SessionDescription?) {}
     override fun onSetSuccess() {}

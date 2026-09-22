@@ -57,7 +57,7 @@ import com.example.epe3_moviles.data.local.ConsultaEntity
 @Composable
 fun HistorialClinicoScreen(
     onBack: () -> Unit,
-    viewModel: HistorialViewModel = viewModel()
+    viewModel: HistorialViewModel = viewModel(),
 ) {
     val isBaseline = viewModel.isBaseline
     val isLoading by viewModel.isLoading.collectAsState()
@@ -140,14 +140,13 @@ fun HistorialClinicoScreen(
                         // RENDERIZADO OPTIMIZED: Paging 3 (páginas de 20 elementos)
                         items(
                             count = pagingItems.itemCount,
-                            key = pagingItems.itemKey { it.id }
+                            key = pagingItems.itemKey { it.id },
                         ) { index ->
-                            val item = pagingItems[index]
-                            if (item != null) {
+                            pagingItems[index]?.let { item ->
                                 ConsultaEntityCard(
                                     consulta = item,
                                     numero = index + 1,
-                                    isBaseline = false
+                                    isBaseline = false,
                                 )
                             }
                         }
@@ -252,14 +251,14 @@ private fun ConsultaEntityCard(
     val imageRequest = if (isBaseline) {
         ImageRequest.Builder(context)
             .data(fotoUrl)
-            .crossfade(false)
+            .crossfade(enable = false)
             .memoryCachePolicy(CachePolicy.DISABLED)
             .diskCachePolicy(CachePolicy.DISABLED)
             .build()
     } else {
         ImageRequest.Builder(context)
             .data(fotoUrl)
-            .crossfade(true)
+            .crossfade(enable = true)
             .size(Size(480, 480))
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)

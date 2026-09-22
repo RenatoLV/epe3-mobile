@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.epe3_moviles.webrtc.WebRtcState
+import java.util.Locale
 
 /**
  * Pantalla de Videoconsulta con conexión WebRTC real en Loopback.
@@ -56,17 +57,17 @@ import com.example.epe3_moviles.webrtc.WebRtcState
 @Composable
 fun VideoconsultaScreen(
     onBack: () -> Unit,
-    viewModel: VideoconsultaViewModel = viewModel()
+    viewModel: VideoconsultaViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
 
-    var camaraMuted by remember { mutableStateOf(false) }
-    var microfonoMuted by remember { mutableStateOf(false) }
+    var camaraMuted by remember { mutableStateOf(value = false) }
+    var microfonoMuted by remember { mutableStateOf(value = false) }
 
     // Launcher para permisos CAMERA y RECORD_AUDIO en tiempo de ejecución
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
         val camaraOk = permissions[Manifest.permission.CAMERA] == true
         val audioOk = permissions[Manifest.permission.RECORD_AUDIO] == true
@@ -88,17 +89,19 @@ fun VideoconsultaScreen(
     LaunchedEffect(state) {
         if (state is WebRtcState.SolicitandoPermisos) {
             val camaraConcedida = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.CAMERA
+                context,
+                Manifest.permission.CAMERA,
             ) == PackageManager.PERMISSION_GRANTED
             val audioConcedido = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.RECORD_AUDIO
+                context,
+                Manifest.permission.RECORD_AUDIO,
             ) == PackageManager.PERMISSION_GRANTED
 
             if (camaraConcedida && audioConcedido) {
                 viewModel.onPermisosConcedidos()
             } else {
                 permissionLauncher.launch(
-                    arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+                    arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO),
                 )
             }
         }
@@ -187,7 +190,7 @@ fun VideoconsultaScreen(
                 onToggleMicrofono = { microfonoMuted = !microfonoMuted },
                 onIniciarLlamada = { viewModel.solicitarInicioLlamada() },
                 onFinalizarLlamada = { viewModel.finalizarVideoconsulta() },
-                onReiniciar = { viewModel.reiniciarEstado() }
+                onReiniciar = { viewModel.reiniciarEstado() },
             )
 
             // Mensaje de error si ocurre alguno
@@ -345,10 +348,11 @@ private fun VideoDisplayCard(
                 is WebRtcState.SolicitandoPermisos,
                 is WebRtcState.Inicializando,
                 is WebRtcState.CreandoOferta,
-                is WebRtcState.IntercambiandoIce -> {
+                is WebRtcState.IntercambiandoIce,
+                -> {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(16.dp),
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(48.dp),
@@ -421,7 +425,7 @@ private fun VideoDisplayCard(
                         // Badge superior con duración de la llamada
                         val minutos = state.tiempoConectadaSegundos / 60
                         val segundos = state.tiempoConectadaSegundos % 60
-                        val tiempoTexto = String.format("%02d:%02d", minutos, segundos)
+                        val tiempoTexto = String.format(Locale.getDefault(), "%02d:%02d", minutos, segundos)
 
                         Row(
                             modifier = Modifier
@@ -572,13 +576,13 @@ private fun ActionControlsRow(
     onToggleMicrofono: () -> Unit,
     onIniciarLlamada: () -> Unit,
     onFinalizarLlamada: () -> Unit,
-    onReiniciar: () -> Unit
+    @Suppress("UNUSED_PARAMETER") onReiniciar: () -> Unit,
 ) {
     val enLlamada = state is WebRtcState.Conectada
-    val negociando = state is WebRtcState.Inicializando ||
-                     state is WebRtcState.CreandoOferta ||
-                     state is WebRtcState.IntercambiandoIce ||
-                     state is WebRtcState.SolicitandoPermisos
+    val negociando = (state is WebRtcState.Inicializando) ||
+                     (state is WebRtcState.CreandoOferta) ||
+                     (state is WebRtcState.IntercambiandoIce) ||
+                     (state is WebRtcState.SolicitandoPermisos)
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -644,7 +648,7 @@ private fun ActionControlsRow(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Finalizar videoconsulta", fontWeight = FontWeight.Bold)
             }
-        } else if (state is WebRtcState.Finalizada || state is WebRtcState.Error) {
+        } else if ((state is WebRtcState.Finalizada) || (state is WebRtcState.Error)) {
             Button(
                 onClick = onIniciarLlamada,
                 modifier = Modifier

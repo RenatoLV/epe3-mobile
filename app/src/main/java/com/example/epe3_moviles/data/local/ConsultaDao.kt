@@ -49,6 +49,7 @@ interface ConsultaDao {
     /**
      * Limpia la tabla para permitir reinicios limpios en pruebas de rendimiento.
      */
+    @Suppress("unused")
     @Query("DELETE FROM consultas")
     suspend fun deleteAll()
 }

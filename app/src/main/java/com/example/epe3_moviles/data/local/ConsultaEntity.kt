@@ -16,7 +16,7 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "consultas",
-    indices = [Index(value = ["fecha"])]
+    indices = [Index(value = ["fecha"])],
 )
 data class ConsultaEntity(
     @PrimaryKey(autoGenerate = true)
@@ -28,5 +28,5 @@ data class ConsultaEntity(
     val especialidad: String,
     val diagnostico: String,
     val tratamiento: String,
-    val pacienteNombre: String = "Renato Alvarez"
+    val pacienteNombre: String = "Renato Alvarez",
 )

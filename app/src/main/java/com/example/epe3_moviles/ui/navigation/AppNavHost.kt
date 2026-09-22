@@ -23,13 +23,13 @@ import com.example.epe3_moviles.ui.screens.VideoconsultaScreen
 fun AppNavHost(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.MiConsulta.route
+        startDestination = Screen.MiConsulta.route,
     ) {
         composable(Screen.MiConsulta.route) {
             MiConsultaScreen(
                 onNavigateToHistorial = { navController.navigate(Screen.HistorialClinico.route) },
                 onNavigateToVideoconsulta = { navController.navigate(Screen.Videoconsulta.route) },
-                onNavigateToClinicas = { navController.navigate(Screen.ClinicasCercanas.route) }
+                onNavigateToClinicas = { navController.navigate(Screen.ClinicasCercanas.route) },
             )
         }
         composable(Screen.HistorialClinico.route) {

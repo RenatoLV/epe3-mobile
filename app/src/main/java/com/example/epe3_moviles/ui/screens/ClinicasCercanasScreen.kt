@@ -47,7 +47,7 @@ import com.example.epe3_moviles.location.ClinicaModel
 @Composable
 fun ClinicasCercanasScreen(
     onBack: () -> Unit,
-    viewModel: ClinicasViewModel = viewModel()
+    viewModel: ClinicasViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
@@ -55,7 +55,7 @@ fun ClinicasCercanasScreen(
 
     // Launcher de permisos de ubicación en runtime
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
@@ -69,10 +69,12 @@ fun ClinicasCercanasScreen(
     // Verificar permisos al iniciar el Composable
     LaunchedEffect(Unit) {
         val fineGranted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
         val coarseGranted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_COARSE_LOCATION
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
 
         if (fineGranted || coarseGranted) {
@@ -81,8 +83,8 @@ fun ClinicasCercanasScreen(
             permissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
             )
         }
     }
@@ -91,7 +93,7 @@ fun ClinicasCercanasScreen(
     DisposableEffect(Unit) {
         onDispose {
             viewModel.detenerSeguimiento(
-                origenCierre = if (isBaseline) "Salida de Pantalla Baseline" else "DisposableEffect onDispose Optimized"
+                origenCierre = if (isBaseline) "Salida de Pantalla Baseline" else "DisposableEffect onDispose Optimized",
             )
         }
     }
@@ -103,19 +105,19 @@ fun ClinicasCercanasScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.semantics { contentDescription = "Volver a Mi Consulta" }
+                        modifier = Modifier.semantics { contentDescription = "Volver a Mi Consulta" },
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null
+                            contentDescription = null,
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
             )
         }
     ) { innerPadding ->
@@ -135,10 +137,10 @@ fun ClinicasCercanasScreen(
                             permissionLauncher.launch(
                                 arrayOf(
                                     Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
+                                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                                ),
                             )
-                        }
+                        },
                     )
                 }
                 is ClinicasLocationState.PermisoDenegado -> {

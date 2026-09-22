@@ -30,6 +30,7 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
     private val database = AppDatabase.getDatabase(application)
     private val dao = database.consultaDao()
 
+    @Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
     val isBaseline: Boolean = BuildConfig.FLAVOR == "baseline"
 
     // Estado para BASELINE: lista completa en memoria
@@ -45,7 +46,7 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
     val totalRegistros: StateFlow<Int> = _totalRegistros.asStateFlow()
 
     // Estado de carga inicial
-    private val _isLoading = MutableStateFlow(true)
+    private val _isLoading = MutableStateFlow(value = true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     // Flujo para OPTIMIZED: Paging 3 con páginas de 20 elementos
@@ -53,15 +54,16 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
         config = PagingConfig(
             pageSize = 20,
             prefetchDistance = 5,
-            enablePlaceholders = false
+            enablePlaceholders = false,
         ),
-        pagingSourceFactory = { dao.getPagingConsultas() }
+        pagingSourceFactory = dao::getPagingConsultas,
     ).flow.cachedIn(viewModelScope)
 
     init {
         cargarDatos()
     }
 
+    @Suppress("unused")
     fun recargar() {
         cargarDatos()
     }

@@ -11,7 +11,7 @@ data class ClinicaModel(
     val especialidades: String,
     val abierta: Boolean,
     val latitud: Double,
-    val longitud: Double
+    val longitud: Double,
 )
 
 /**
@@ -27,7 +27,7 @@ val clinicasSantiagoFicticias = listOf(
         especialidades = "Medicina General · Pediatría",
         abierta = true,
         latitud = -33.4560,
-        longitud = -70.6280
+        longitud = -70.6280,
     ),
     ClinicaModel(
         id = 2,
@@ -37,7 +37,7 @@ val clinicasSantiagoFicticias = listOf(
         especialidades = "Urgencias · Cardiología · Traumatología",
         abierta = true,
         latitud = -33.4285,
-        longitud = -70.6480
+        longitud = -70.6480,
     ),
     ClinicaModel(
         id = 3,
@@ -47,7 +47,7 @@ val clinicasSantiagoFicticias = listOf(
         especialidades = "Oncología · Ginecología · Neurología",
         abierta = true,
         latitud = -33.4330,
-        longitud = -70.6300
+        longitud = -70.6300,
     ),
     ClinicaModel(
         id = 4,
@@ -57,7 +57,7 @@ val clinicasSantiagoFicticias = listOf(
         especialidades = "Medicina Interna · Cirugía Adultos",
         abierta = false,
         latitud = -33.4600,
-        longitud = -70.6450
+        longitud = -70.6450,
     ),
     ClinicaModel(
         id = 5,
@@ -67,7 +67,7 @@ val clinicasSantiagoFicticias = listOf(
         especialidades = "Urgencias · Maternidad",
         abierta = true,
         latitud = -33.5150,
-        longitud = -70.7720
+        longitud = -70.7720,
     ),
     ClinicaModel(
         id = 6,
@@ -77,6 +77,6 @@ val clinicasSantiagoFicticias = listOf(
         especialidades = "Medicina General · Salud Mental",
         abierta = true,
         latitud = -33.3600,
-        longitud = -70.5100
-    )
+        longitud = -70.5100,
+    ),
 )

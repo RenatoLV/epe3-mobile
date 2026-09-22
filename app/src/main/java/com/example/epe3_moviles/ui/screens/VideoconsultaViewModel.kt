@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * ViewModel que orquesta la sesión de Videoconsulta WebRTC en loopback.
@@ -39,7 +40,9 @@ import java.util.Locale
  */
 class VideoconsultaViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val TAG = WebRtcSessionManager.TAG
+    private val tag = WebRtcSessionManager.TAG
+
+    @Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
     val isBaseline: Boolean = BuildConfig.FLAVOR == "baseline"
 
     private val sessionManager = WebRtcSessionManager(application)
@@ -52,14 +55,14 @@ class VideoconsultaViewModel(application: Application) : AndroidViewModel(applic
 
     private fun logTimestamp(msg: String) {
         val hora = timeFormat.format(Date())
-        Log.d(TAG, "[$hora] $msg")
+        Log.d(tag, "[$hora] $msg")
     }
 
     /**
      * Inicia la solicitud de permisos o el arranque de la llamada si ya están concedidos.
      */
     fun solicitarInicioLlamada() {
-        if (_state.value is WebRtcState.Conectada || _state.value is WebRtcState.Inicializando) {
+        if ((_state.value is WebRtcState.Conectada) || (_state.value is WebRtcState.Inicializando)) {
             return
         }
         _state.value = WebRtcState.SolicitandoPermisos
@@ -70,7 +73,7 @@ class VideoconsultaViewModel(application: Application) : AndroidViewModel(applic
         logTimestamp("Permisos de cámara o micrófono denegados por el usuario.")
         _state.value = WebRtcState.Error(
             mensaje = "Se requieren permisos de cámara y micrófono para la videoconsulta.",
-            esRecuperable = true
+            esRecuperable = true,
         )
     }
 
@@ -143,7 +146,7 @@ class VideoconsultaViewModel(application: Application) : AndroidViewModel(applic
     private fun handleStateChange(
         nuevoEstado: WebRtcState,
         videoActivo: Boolean,
-        infoCamara: String
+        infoCamara: String,
     ) {
         logTimestamp("Transición de estado WebRTC: ${nuevoEstado::class.simpleName} -> ${nuevoEstado.displayLabel}")
 
@@ -152,12 +155,12 @@ class VideoconsultaViewModel(application: Application) : AndroidViewModel(applic
                 tiempoConectadaSegundos = 0L,
                 videoActivo = videoActivo,
                 audioActivo = true,
-                infoCamara = infoCamara
+                infoCamara = infoCamara,
             )
             _state.value = estadoConectado
             iniciarTemporizadorLlamada(videoActivo, infoCamara)
         } else {
-            if (nuevoEstado is WebRtcState.Finalizada || nuevoEstado is WebRtcState.Error) {
+            if ((nuevoEstado is WebRtcState.Finalizada) || (nuevoEstado is WebRtcState.Error)) {
                 detenerTemporizadorLlamada()
             }
             _state.value = nuevoEstado
@@ -169,14 +172,13 @@ class VideoconsultaViewModel(application: Application) : AndroidViewModel(applic
         durationJob = viewModelScope.launch {
             var segundos = 0L
             while (isActive) {
-                delay(1000L)
+                delay(1.seconds)
                 segundos++
-                val actual = _state.value
-                if (actual is WebRtcState.Conectada) {
+                (_state.value as? WebRtcState.Conectada)?.let { actual ->
                     _state.value = actual.copy(
                         tiempoConectadaSegundos = segundos,
                         videoActivo = videoActivo,
-                        infoCamara = infoCamara
+                        infoCamara = infoCamara,
                     )
                 }
             }
