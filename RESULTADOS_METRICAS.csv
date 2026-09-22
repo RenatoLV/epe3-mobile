@@ -1,0 +1,18 @@
+Escenario,Variante,Dispositivo,Condicion_Red,Condicion_Cache,Repeticion_1,Repeticion_2,Repeticion_3,Promedio,Unidad,Mejora_Porcentaje,Estado,Notas
+Descarga_Historial_Clinico_Bytes,baseline,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_Desactivada,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,N/A,PENDIENTE,8 fotos originales grandes sin compresión ni caché
+Descarga_Historial_Clinico_Bytes,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_PrimeraCarga,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,PENDIENTE,PENDIENTE,8 fotos WebP 480px con compresión
+Descarga_Historial_Clinico_Bytes,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Caliente_EnCache,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,PENDIENTE,PENDIENTE,Segunda navegación con caché de disco activa
+Descarga_Historial_Clinico_Tiempo,baseline,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_Desactivada,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,s,N/A,PENDIENTE,Tiempo total de carga de 8 imágenes
+Descarga_Historial_Clinico_Tiempo,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_PrimeraCarga,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,s,PENDIENTE,PENDIENTE,Tiempo total de carga con WebP
+Descarga_Historial_Clinico_Tiempo,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Caliente_EnCache,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,s,PENDIENTE,PENDIENTE,Tiempo de carga desde caché local
+Peticiones_Red_Historial,baseline,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_Desactivada,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,solicitudes,N/A,PENDIENTE,Número de solicitudes HTTP completadas
+Peticiones_Red_Historial,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Fria_PrimeraCarga,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,solicitudes,PENDIENTE,PENDIENTE,Número de solicitudes HTTP iniciales
+Peticiones_Red_Historial,optimized,Emulador_Pixel6_API34,Local_Sin_Limites,Caliente_EnCache,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,solicitudes,PENDIENTE,PENDIENTE,Solicitudes en navegación repetida
+CPU_Pico_Videoconsulta,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%,N/A,PENDIENTE,Medición con CPU Profiler (Fase 6)
+CPU_Pico_Videoconsulta,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%,PENDIENTE,PENDIENTE,Medición con CPU Profiler (Fase 6)
+Memoria_Heap_6_Ciclos,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,N/A,PENDIENTE,Heap retenido tras 6 ciclos (Fase 6)
+Memoria_Heap_6_Ciclos,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,MB,PENDIENTE,PENDIENTE,Heap retenido tras 6 ciclos (Fase 6)
+Consumo_Bateria_GPS,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%/hora,N/A,PENDIENTE,Medición con Energy Profiler (Fase 5)
+Consumo_Bateria_GPS,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,%/hora,PENDIENTE,PENDIENTE,Medición con Energy Profiler (Fase 5)
+Arranque_Cold_Start,baseline,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,ms,N/A,PENDIENTE,Medición con App Startup Trace
+Arranque_Cold_Start,optimized,Emulador_Pixel6_API34,N/A,N/A,PENDIENTE,PENDIENTE,PENDIENTE,PENDIENTE,ms,PENDIENTE,PENDIENTE,Medición con App Startup Trace
