@@ -1,13 +1,20 @@
 package com.example.epe3_moviles.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MedicalInformation
+import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -38,20 +45,10 @@ import com.example.epe3_moviles.data.local.ConsultaEntity
 /**
  * Pantalla Historial Clínico conectada a Room y Paging 3 (Paso 4).
  *
- * BASELINE (Didáctico):
- * - Consulta Room monolítica (`getAllConsultas`) que trae los 220 registros completos a memoria.
- * - Muestra el tiempo de consulta y el conteo total.
- * - Carga de imágenes HTTP originales sin caché.
- *
- * OPTIMIZED:
- * - Consulta Room con Paging 3 (`getPagingConsultas`) en páginas de 20 registros bajo demanda.
- * - Carga incremental al desplazarse, optimizada por índice en columna `fecha`.
- * - Carga de imágenes HTTP WebP con caché en disco y memoria.
- *
- * Accesibilidad (WCAG):
- * - Anuncio accesible de estado de carga mediante [LiveRegionMode.Polite].
- * - contentDescription completo en cada elemento.
- * - Objetivos táctiles mínimos de 48 dp.
+ * Diseño clínico modernizado:
+ * - Banner informativo estilizado.
+ * - Tarjetas de consulta con jerarquía visual médica clara (Médico, Especialidad, Fecha, Diagnóstico y Receta Rx).
+ * - Avatar con fallback elegante a iniciales del médico si la imagen HTTP no está disponible.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +70,20 @@ fun HistorialClinicoScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Historial Clínico") },
+                title = {
+                    Column {
+                        Text(
+                            text = "Historial Clínico",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isBaseline) "Carga completa (Room monolítico)" else "Carga paginada (Room + Paging 3)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
@@ -88,9 +98,9 @@ fun HistorialClinicoScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
@@ -98,6 +108,7 @@ fun HistorialClinicoScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
             // Banner de la variante indicando la estrategia de Room
@@ -117,12 +128,20 @@ fun HistorialClinicoScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Consultando base de datos local...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     if (isBaseline) {
                         // RENDERIZADO BASELINE: 220 registros cargados monolíticamente
@@ -140,18 +159,48 @@ fun HistorialClinicoScreen(
                         // RENDERIZADO OPTIMIZED: Paging 3 (páginas de 20 elementos)
                         items(
                             count = pagingItems.itemCount,
-                            key = pagingItems.itemKey { it.id },
+                            key = pagingItems.itemKey { it.id }
                         ) { index ->
-                            pagingItems[index]?.let { item ->
+                            val consulta = pagingItems[index]
+                            if (consulta != null) {
                                 ConsultaEntityCard(
-                                    consulta = item,
+                                    consulta = consulta,
                                     numero = index + 1,
-                                    isBaseline = false,
+                                    isBaseline = false
                                 )
                             }
                         }
 
-                        // Indicador de carga al solicitar la siguiente página de 20 elementos
+                        when (val refreshState = pagingItems.loadState.refresh) {
+                            is LoadState.Loading -> {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                    }
+                                }
+                            }
+                            is LoadState.Error -> {
+                                item {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                                    ) {
+                                        Text(
+                                            text = "Error al inicializar Paging: ${refreshState.error.message}",
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.padding(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            else -> {}
+                        }
+
                         when (pagingItems.loadState.append) {
                             is LoadState.Loading -> {
                                 item {
@@ -165,7 +214,21 @@ fun HistorialClinicoScreen(
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                text = "Cargando 20 registros más...",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -188,7 +251,7 @@ fun HistorialClinicoScreen(
 }
 
 /**
- * Banner informativo que detalla la estrategia de Room y Paging activa.
+ * Banner informativo estilizado que detalla la estrategia de Room y Paging activa.
  */
 @Composable
 private fun RoomFlavorBanner(
@@ -196,44 +259,61 @@ private fun RoomFlavorBanner(
     totalRegistros: Int,
     tiempoConsultaMs: Long?
 ) {
-    val backgroundColor = if (isBaseline) Color(0xFFFFF3CD) else Color(0xFFD4EDDA)
-    val contentColor = if (isBaseline) Color(0xFF664D00) else Color(0xFF155724)
+    val borderColor = if (isBaseline) Color(0xFFF59E0B) else Color(0xFF10B981)
+    val bgColor = if (isBaseline) Color(0xFF78350F).copy(alpha = 0.25f) else Color(0xFF064E3B).copy(alpha = 0.25f)
+    val textColor = if (isBaseline) Color(0xFFFDE68A) else Color(0xFFA7F3D0)
+
     val titulo = if (isBaseline)
-        "⚗️ BASELINE: Room sin paginación (Didáctico)"
+        "BASELINE: Room Monolítico ($totalRegistros registros)"
     else
-        "✅ OPTIMIZED: Room + Paging 3 (Páginas de 20)"
+        "OPTIMIZADO: Room + Paging 3 (Páginas de 20)"
 
     val detalle = if (isBaseline) {
-        val extra = if (tiempoConsultaMs != null) " Tiempo de consulta: ${tiempoConsultaMs}ms." else ""
-        "Carga monolítica de $totalRegistros registros en memoria de una sola vez.$extra Caché de imágenes desactivada."
+        val extra = if (tiempoConsultaMs != null) " Tiempo: ${tiempoConsultaMs}ms." else ""
+        "Carga los $totalRegistros registros completos en memoria.$extra Sin paginación ni caché."
     } else {
-        "Paginación reactiva de $totalRegistros registros indexados por fecha. Caché de imágenes y WebP activos."
+        "Paginación bajo demanda ($totalRegistros registros indexados por fecha). Caché WebP activa."
     }
 
     Surface(
-        color = backgroundColor,
+        color = bgColor,
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "$titulo. $detalle" }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .border(1.dp, borderColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .semantics { contentDescription = "$titulo. $detalle" },
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(
-                text = titulo,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = contentColor
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = borderColor,
+                modifier = Modifier.size(20.dp)
             )
-            Text(
-                text = detalle,
-                style = MaterialTheme.typography.bodySmall,
-                color = contentColor
-            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = titulo,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Text(
+                    text = detalle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor.copy(alpha = 0.9f)
+                )
+            }
         }
     }
 }
 
 /**
- * Tarjeta para representar una [ConsultaEntity] de Room con su imagen HTTP respectiva.
+ * Tarjeta médica para representar una [ConsultaEntity] de Room.
  */
 @Composable
 private fun ConsultaEntityCard(
@@ -265,116 +345,199 @@ private fun ConsultaEntityCard(
             .build()
     }
 
+    // Iniciales para fallback del avatar (ej. "Dr. Andrés Morales" -> "AM")
+    val iniciales = consulta.medicoNombre
+        .replace("Dr. ", "")
+        .replace("Dra. ", "")
+        .split(" ")
+        .mapNotNull { it.firstOrNull()?.toString() }
+        .take(2)
+        .joinToString("")
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+                ),
+                RoundedCornerShape(16.dp)
+            )
             .semantics { contentDescription = descripcionAccesible },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar del médico con descarga HTTP real
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Fila superior: Avatar, Nombre del médico, especialidad y número de consulta
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                SubcomposeAsyncImage(
-                    model = imageRequest,
-                    contentDescription = "Fotografía de ${consulta.medicoNombre}",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    loading = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .semantics {
-                                    liveRegion = LiveRegionMode.Polite
-                                    contentDescription = "Cargando foto de ${consulta.medicoNombre}"
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        }
-                    },
-                    error = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.errorContainer)
-                                .semantics {
-                                    contentDescription = "Foto no disponible para ${consulta.medicoNombre}"
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.BrokenImage,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Avatar del médico con descarga HTTP y fallback elegante
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
+                    SubcomposeAsyncImage(
+                        model = imageRequest,
+                        contentDescription = "Fotografía de ${consulta.medicoNombre}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = iniciales,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        },
+                        error = {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = iniciales,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = consulta.medicoNombre,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f, fill = false)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = consulta.especialidad,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = consulta.fechaTexto,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
                     Text(
                         text = "#$numero",
                         style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Sección: Diagnóstico
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MedicalInformation,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .padding(top = 2.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Diagnóstico Clínico",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = consulta.diagnostico,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Sección: Tratamiento Rx en cajita destacada
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Medication,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Rx: ${consulta.tratamiento}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                Text(
-                    text = consulta.especialidad,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = "📅 ${consulta.fechaTexto}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = consulta.diagnostico,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-
-                Text(
-                    text = "Rx: ${consulta.tratamiento}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
             }
         }
     }

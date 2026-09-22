@@ -7,18 +7,23 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
@@ -37,21 +42,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.epe3_moviles.webrtc.WebRtcState
-import java.util.Locale
 
 /**
  * Pantalla de Videoconsulta con conexión WebRTC real en Loopback.
  *
- * Cumplimiento de requerimientos EPE3 Paso 6:
- * - Permisos CAMERA y RECORD_AUDIO solicitados en runtime.
- * - Estados de UI completos y accesibles:
- *   Idle, SolicitandoPermisos, Inicializando, CreandoOferta,
- *   IntercambiandoIce, Conectada, Finalizada y Error.
- * - Botones accesibles con etiquetas exactas:
- *   "Iniciar videoconsulta" y "Finalizar videoconsulta".
- * - Registro estructurado en Logcat con tag "EPE3_WebRTC".
- * - Liberación estricta de todos los recursos en [DisposableEffect].
- * - Diferenciación entre Baseline (Hilo principal didáctico) y Optimized (Dispatchers.Default).
+ * Diseño clínico modernizado:
+ * - Visor de llamada con estética contemporánea (modo oscuro nocturno en área de video, indicadores de calidad).
+ * - Barra de controles de telemedicina con acceso rápido a silencio, cámara y colgar.
+ * - Tarjetas informativas con alto contraste y legibilidad.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,10 +60,10 @@ fun VideoconsultaScreen(
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
 
-    var camaraMuted by remember { mutableStateOf(value = false) }
-    var microfonoMuted by remember { mutableStateOf(value = false) }
+    var camaraMuted by remember { mutableStateOf(false) }
+    var microfonoMuted by remember { mutableStateOf(false) }
 
-    // Launcher para permisos CAMERA y RECORD_AUDIO en tiempo de ejecución
+    // Launcher para permisos CAMERA y RECORD_AUDIO en runtime
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
@@ -78,14 +76,14 @@ fun VideoconsultaScreen(
         }
     }
 
-    // Efecto de ciclo de vida: Al salir de la pantalla se liberan todos los recursos nativos
+    // Efecto de ciclo de vida: Liberación estricta de hardware
     DisposableEffect(Unit) {
         onDispose {
             viewModel.release()
         }
     }
 
-    // Manejador del disparo de permisos cuando el estado pasa a SolicitandoPermisos
+    // Manejador del disparo de permisos
     LaunchedEffect(state) {
         if (state is WebRtcState.SolicitandoPermisos) {
             val camaraConcedida = ContextCompat.checkSelfPermission(
@@ -110,7 +108,20 @@ fun VideoconsultaScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Videoconsulta WebRTC") },
+                title = {
+                    Column {
+                        Text(
+                            text = "Videoconsulta WebRTC",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Telemedicina en tiempo real",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
@@ -125,9 +136,9 @@ fun VideoconsultaScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
@@ -135,48 +146,24 @@ fun VideoconsultaScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Banner de la variante activa (Baseline vs Optimized)
+            // Banner de la variante activa
             VarianteBanner(isBaseline = viewModel.isBaseline)
 
-            // Contenedor principal de video / estado loopback
+            // Contenedor principal de video / streaming loopback
             VideoDisplayCard(
                 state = state,
                 camaraMuted = camaraMuted
             )
 
             // Tarjeta de información del médico y la cita programada
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Consulta programada  ·  [DATOS FICTICIOS]",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Dra. Isabel Fuentes — Medicina General",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Sesión WebRTC Loopback en tiempo real",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            DoctorCallInfoCard()
 
             // Chip accesible de estado
             StatusChip(state = state)
@@ -189,8 +176,7 @@ fun VideoconsultaScreen(
                 onToggleCamara = { camaraMuted = !camaraMuted },
                 onToggleMicrofono = { microfonoMuted = !microfonoMuted },
                 onIniciarLlamada = { viewModel.solicitarInicioLlamada() },
-                onFinalizarLlamada = { viewModel.finalizarVideoconsulta() },
-                onReiniciar = { viewModel.reiniciarEstado() },
+                onFinalizarLlamada = { viewModel.finalizarVideoconsulta() }
             )
 
             // Mensaje de error si ocurre alguno
@@ -202,12 +188,13 @@ fun VideoconsultaScreen(
                 val errorState = state as? WebRtcState.Error
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -233,20 +220,32 @@ fun VideoconsultaScreen(
                 }
             }
 
-            // Nota académica y de diagnóstico
+            // Tarjeta de diagnóstico y referencia técnica
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)), RoundedCornerShape(14.dp)),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "Diagnóstico WebRTC (Tag Logcat: EPE3_WebRTC)",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Diagnóstico WebRTC (Filtro Logcat: EPE3_WebRTC)",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "La llamada se ejecuta en un loopback local auténtico con códecs y pistas de medios. " +
@@ -256,10 +255,12 @@ fun VideoconsultaScreen(
                                     "Optimized traslada la inicialización a Dispatchers.Default manteniendo la interfaz fluida."
                                 },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -269,34 +270,48 @@ fun VideoconsultaScreen(
  */
 @Composable
 private fun VarianteBanner(isBaseline: Boolean) {
+    val borderColor = if (isBaseline) Color(0xFFF59E0B) else Color(0xFF10B981)
+    val bgColor = if (isBaseline) Color(0xFF78350F).copy(alpha = 0.25f) else Color(0xFF064E3B).copy(alpha = 0.25f)
+    val textColor = if (isBaseline) Color(0xFFFDE68A) else Color(0xFFA7F3D0)
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = if (isBaseline) MaterialTheme.colorScheme.tertiaryContainer
-                else MaterialTheme.colorScheme.primaryContainer,
-        shape = MaterialTheme.shapes.medium
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, borderColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+        color = bgColor,
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = if (isBaseline) "Variante: BASELINE (Didáctica)"
-                       else "Variante: OPTIMIZED",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = if (isBaseline) MaterialTheme.colorScheme.onTertiaryContainer
-                        else MaterialTheme.colorScheme.onPrimaryContainer
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = borderColor,
+                modifier = Modifier.size(20.dp)
             )
-            Text(
-                text = if (isBaseline) "Inicialización y negociación SDP en Hilo Principal (Main Thread)."
-                       else "Inicialización y negociación SDP asíncrona en Dispatchers.Default.",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isBaseline) MaterialTheme.colorScheme.onTertiaryContainer
-                        else MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = if (isBaseline) "BASELINE (Didáctica)" else "OPTIMIZADA",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Text(
+                    text = if (isBaseline) "Inicialización y negociación SDP en Hilo Principal (Main Thread)."
+                           else "Inicialización asíncrona en Dispatchers.Default (UI fluida).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor.copy(alpha = 0.9f)
+                )
+            }
         }
     }
 }
 
 /**
- * Visor de estado y contenedor visual de la videoconsulta loopback.
+ * Contenedor visual moderno de la videoconsulta loopback.
  */
 @Composable
 private fun VideoDisplayCard(
@@ -307,11 +322,12 @@ private fun VideoDisplayCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(240.dp)
+            .border(BorderStroke(1.dp, Color(0xFF334155)), RoundedCornerShape(20.dp))
             .semantics {
                 contentDescription = "Área de video de videoconsulta: ${state.displayLabel}"
             },
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.large
+        color = Color(0xFF0B132B),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -323,24 +339,33 @@ private fun VideoDisplayCard(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Videocam,
-                            contentDescription = null,
-                            modifier = Modifier.size(52.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            modifier = Modifier.size(64.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Filled.Videocam,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(36.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Videoconsulta en Reposo",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Presiona \"Iniciar videoconsulta\" para establecer la conexión WebRTC local.",
+                            text = "Presiona \"Iniciar videoconsulta\" para conectar el loopback WebRTC.",
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF94A3B8)
                         )
                     }
                 }
@@ -348,29 +373,29 @@ private fun VideoDisplayCard(
                 is WebRtcState.SolicitandoPermisos,
                 is WebRtcState.Inicializando,
                 is WebRtcState.CreandoOferta,
-                is WebRtcState.IntercambiandoIce,
-                -> {
+                is WebRtcState.IntercambiandoIce -> {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(16.dp)
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(48.dp),
-                            color = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(44.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 3.dp
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
                             text = state.displayLabel,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Negociando códecs de audio y video...",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF94A3B8)
                         )
                     }
                 }
@@ -380,9 +405,8 @@ private fun VideoDisplayCard(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF1E293B))
+                            .background(Color(0xFF0F172A))
                     ) {
-                        // Indicador de conexión activa
                         Column(
                             modifier = Modifier.align(Alignment.Center),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -392,20 +416,20 @@ private fun VideoDisplayCard(
                                     imageVector = Icons.Filled.VideocamOff,
                                     contentDescription = "Cámara pausada",
                                     modifier = Modifier.size(48.dp),
-                                    tint = Color.LightGray
+                                    tint = Color(0xFF64748B)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Cámara pausada por el usuario",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White
+                                    color = Color(0xFF94A3B8)
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Filled.Videocam,
                                     contentDescription = "Video activo",
-                                    modifier = Modifier.size(56.dp),
-                                    tint = Color(0xFF4ADE80)
+                                    modifier = Modifier.size(54.dp),
+                                    tint = Color(0xFF34D399)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
@@ -417,7 +441,7 @@ private fun VideoDisplayCard(
                                 Text(
                                     text = "Streaming WebRTC Loopback bidireccional",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.LightGray
+                                    color = Color(0xFF94A3B8)
                                 )
                             }
                         }
@@ -425,7 +449,7 @@ private fun VideoDisplayCard(
                         // Badge superior con duración de la llamada
                         val minutos = state.tiempoConectadaSegundos / 60
                         val segundos = state.tiempoConectadaSegundos % 60
-                        val tiempoTexto = String.format(Locale.getDefault(), "%02d:%02d", minutos, segundos)
+                        val tiempoTexto = String.format("%02d:%02d", minutos, segundos)
 
                         Row(
                             modifier = Modifier
@@ -436,8 +460,8 @@ private fun VideoDisplayCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
-                                color = Color(0xCC0F172A),
-                                shape = MaterialTheme.shapes.small
+                                color = Color(0xDD0B132B),
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -460,13 +484,14 @@ private fun VideoDisplayCard(
                             }
 
                             Surface(
-                                color = Color(0xCC0F172A),
-                                shape = MaterialTheme.shapes.small
+                                color = Color(0xDD0B132B),
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     text = "Loopback 640x480",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF93C5FD),
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF38BDF8),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
@@ -483,20 +508,21 @@ private fun VideoDisplayCard(
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = Color(0xFF34D399)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "Videoconsulta finalizada",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Los recursos nativos y de hardware fueron liberados exitosamente.",
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF94A3B8)
                         )
                     }
                 }
@@ -509,24 +535,80 @@ private fun VideoDisplayCard(
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.error
+                            modifier = Modifier.size(44.dp),
+                            tint = Color(0xFFF87171)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "No se pudo conectar",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
+                            color = Color(0xFFF87171)
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = state.mensaje,
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF94A3B8)
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Tarjeta de información del médico asignado.
+ */
+@Composable
+private fun DoctorCallInfoCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)), RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                modifier = Modifier.size(46.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Dra. Isabel Fuentes",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Medicina General · Teleconsulta WebRTC",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -539,12 +621,13 @@ private fun VideoDisplayCard(
 private fun StatusChip(state: WebRtcState) {
     Surface(
         color = when (state) {
-            is WebRtcState.Conectada -> MaterialTheme.colorScheme.primaryContainer
-            is WebRtcState.Error -> MaterialTheme.colorScheme.errorContainer
-            is WebRtcState.Finalizada -> MaterialTheme.colorScheme.secondaryContainer
+            is WebRtcState.Conectada -> Color(0xFF064E3B)
+            is WebRtcState.Error -> Color(0xFF7F1D1D)
+            is WebRtcState.Finalizada -> MaterialTheme.colorScheme.surfaceVariant
             else -> MaterialTheme.colorScheme.surfaceVariant
         },
-        shape = MaterialTheme.shapes.extraLarge,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier.semantics {
             contentDescription = "Estado actual de la videoconsulta: ${state.displayLabel}"
         }
@@ -552,11 +635,11 @@ private fun StatusChip(state: WebRtcState) {
         Text(
             text = state.displayLabel,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             color = when (state) {
-                is WebRtcState.Conectada -> MaterialTheme.colorScheme.onPrimaryContainer
-                is WebRtcState.Error -> MaterialTheme.colorScheme.onErrorContainer
-                is WebRtcState.Finalizada -> MaterialTheme.colorScheme.onSecondaryContainer
+                is WebRtcState.Conectada -> Color(0xFFA7F3D0)
+                is WebRtcState.Error -> Color(0xFFFCA5A5)
+                is WebRtcState.Finalizada -> MaterialTheme.colorScheme.onSurfaceVariant
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
@@ -575,8 +658,7 @@ private fun ActionControlsRow(
     onToggleCamara: () -> Unit,
     onToggleMicrofono: () -> Unit,
     onIniciarLlamada: () -> Unit,
-    onFinalizarLlamada: () -> Unit,
-    @Suppress("UNUSED_PARAMETER") onReiniciar: () -> Unit,
+    onFinalizarLlamada: () -> Unit
 ) {
     val enLlamada = state is WebRtcState.Conectada
     val negociando = (state is WebRtcState.Inicializando) ||
@@ -595,15 +677,20 @@ private fun ActionControlsRow(
             onCheckedChange = { onToggleCamara() },
             enabled = enLlamada,
             modifier = Modifier
-                .size(56.dp)
+                .size(54.dp)
                 .semantics {
                     contentDescription = if (camaraMuted) "Activar cámara" else "Desactivar cámara"
-                }
+                },
+            colors = IconButtonDefaults.filledIconToggleButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         ) {
             Icon(
                 imageVector = if (!camaraMuted) Icons.Filled.Videocam else Icons.Filled.VideocamOff,
                 contentDescription = null,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
@@ -613,15 +700,20 @@ private fun ActionControlsRow(
             onCheckedChange = { onToggleMicrofono() },
             enabled = enLlamada,
             modifier = Modifier
-                .size(56.dp)
+                .size(54.dp)
                 .semantics {
                     contentDescription = if (microfonoMuted) "Activar micrófono" else "Silenciar micrófono"
-                }
+                },
+            colors = IconButtonDefaults.filledIconToggleButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         ) {
             Icon(
                 imageVector = if (!microfonoMuted) Icons.Filled.Mic else Icons.Filled.MicOff,
                 contentDescription = null,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
@@ -630,12 +722,13 @@ private fun ActionControlsRow(
             Button(
                 onClick = onFinalizarLlamada,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
+                    containerColor = Color(0xFFDC2626),
+                    contentColor = Color.White
                 ),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 56.dp)
+                    .heightIn(min = 54.dp)
                     .semantics {
                         contentDescription = "Finalizar videoconsulta"
                     }
@@ -648,12 +741,17 @@ private fun ActionControlsRow(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Finalizar videoconsulta", fontWeight = FontWeight.Bold)
             }
-        } else if ((state is WebRtcState.Finalizada) || (state is WebRtcState.Error)) {
+        } else if (state is WebRtcState.Finalizada || state is WebRtcState.Error) {
             Button(
                 onClick = onIniciarLlamada,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 56.dp)
+                    .heightIn(min = 54.dp)
                     .semantics {
                         contentDescription = "Iniciar videoconsulta"
                     }
@@ -669,9 +767,14 @@ private fun ActionControlsRow(
         } else {
             Button(
                 onClick = onIniciarLlamada,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 56.dp)
+                    .heightIn(min = 54.dp)
                     .semantics {
                         contentDescription = "Iniciar videoconsulta"
                     }

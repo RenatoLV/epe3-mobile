@@ -4,12 +4,17 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Navigation
@@ -33,15 +38,10 @@ import com.example.epe3_moviles.location.ClinicaModel
 /**
  * Pantalla Clínicas Cercanas adaptada para medición de energía y geolocalización (Paso 5).
  *
- * BASELINE:
- * - Frecuencia alta: Cada 2 segundos con [Priority.PRIORITY_HIGH_ACCURACY].
- * - Muestra estado "Medición activa".
- * - Se detiene al salir de la pantalla con log de confirmación.
- *
- * OPTIMIZED:
- * - Frecuencia moderada: Cada 30 segundos con [Priority.PRIORITY_BALANCED_POWER_ACCURACY].
- * - Detención mediante [DisposableEffect] con [onDispose].
- * - Muestra estado "Ubicación detenida" al finalizar.
+ * Diseño clínico modernizado:
+ * - Tarjetas con badges destacados de distancia (fórmula Haversine).
+ * - Indicadores claros de estado abierto/cerrado.
+ * - Banner con información de frecuencia GPS de alto contraste.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,7 +89,7 @@ fun ClinicasCercanasScreen(
         }
     }
 
-    // Gestión estricta de ciclo de vida: se detienen las actualizaciones al salir del Composable
+    // Gestión estricta de ciclo de vida: se detienen las actualizaciones al salir
     DisposableEffect(Unit) {
         onDispose {
             viewModel.detenerSeguimiento(
@@ -101,7 +101,20 @@ fun ClinicasCercanasScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Clínicas cercanas") },
+                title = {
+                    Column {
+                        Text(
+                            text = "Clínicas Cercanas",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isBaseline) "GPS cada 2s (High Accuracy)" else "GPS cada 30s (Balanced Power)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
@@ -114,9 +127,9 @@ fun ClinicasCercanasScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         }
@@ -124,6 +137,7 @@ fun ClinicasCercanasScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
             // Banner de la variante indicando la frecuencia y prioridad del GPS
@@ -179,17 +193,18 @@ fun ClinicasCercanasScreen(
  */
 @Composable
 private fun GpsFlavorBanner(isBaseline: Boolean, state: ClinicasLocationState) {
-    val backgroundColor = if (isBaseline) Color(0xFFFFF3CD) else Color(0xFFD4EDDA)
-    val contentColor = if (isBaseline) Color(0xFF664D00) else Color(0xFF155724)
+    val borderColor = if (isBaseline) Color(0xFFF59E0B) else Color(0xFF10B981)
+    val bgColor = if (isBaseline) Color(0xFF78350F).copy(alpha = 0.25f) else Color(0xFF064E3B).copy(alpha = 0.25f)
+    val textColor = if (isBaseline) Color(0xFFFDE68A) else Color(0xFFA7F3D0)
 
     val titulo = if (isBaseline)
-        "⚗️ BASELINE: GPS cada 2s · HIGH_ACCURACY (Medición activa)"
+        "BASELINE: GPS cada 2s · HIGH_ACCURACY"
     else
-        "✅ OPTIMIZED: GPS cada 30s · BALANCED_POWER"
+        "OPTIMIZADO: GPS cada 30s · BALANCED_POWER"
 
     val detalle = when (state) {
         is ClinicasLocationState.UbicacionDisponible ->
-            "Muestra #${state.conteoActualizaciones} a las ${state.horaTexto} (precisión ±${state.precisionMetros.toInt()}m). Se detiene al salir."
+            "Muestra #${state.conteoActualizaciones} a las ${state.horaTexto} (±${state.precisionMetros.toInt()}m). Se detiene al salir."
         is ClinicasLocationState.BuscandoUbicacion ->
             "Obteniendo primera coordenada satelital/red..."
         is ClinicasLocationState.UbicacionDetenida ->
@@ -200,23 +215,38 @@ private fun GpsFlavorBanner(isBaseline: Boolean, state: ClinicasLocationState) {
     }
 
     Surface(
-        color = backgroundColor,
+        color = bgColor,
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "$titulo. $detalle" }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .border(1.dp, borderColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .semantics { contentDescription = "$titulo. $detalle" },
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(
-                text = titulo,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = contentColor
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = borderColor,
+                modifier = Modifier.size(20.dp)
             )
-            Text(
-                text = detalle,
-                style = MaterialTheme.typography.bodySmall,
-                color = contentColor
-            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = titulo,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Text(
+                    text = detalle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor.copy(alpha = 0.9f)
+                )
+            }
         }
     }
 }
@@ -226,8 +256,8 @@ private fun ListaClinicasConDistancia(
     clinicasConDistancia: List<Pair<ClinicaModel, String>>
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         items(clinicasConDistancia, key = { it.first.id }) { (clinica, distanciaTexto) ->
             ClinicaCardConDistancia(clinica = clinica, distanciaTexto = distanciaTexto)
@@ -247,8 +277,19 @@ private fun ClinicaCardConDistancia(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+                ),
+                RoundedCornerShape(16.dp)
+            )
             .semantics { contentDescription = accesible },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -260,12 +301,14 @@ private fun ClinicaCardConDistancia(
                     text = clinica.nombre,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
+
                 // Badge con distancia calculada en tiempo real
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = MaterialTheme.shapes.small
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -275,7 +318,7 @@ private fun ClinicaCardConDistancia(
                         Icon(
                             imageVector = Icons.Filled.Navigation,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(13.dp),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
@@ -294,10 +337,10 @@ private fun ClinicaCardConDistancia(
                 text = clinica.especialidades,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -306,7 +349,7 @@ private fun ClinicaCardConDistancia(
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = clinica.direccion,
                     style = MaterialTheme.typography.bodyMedium,
@@ -314,7 +357,7 @@ private fun ClinicaCardConDistancia(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -323,7 +366,7 @@ private fun ClinicaCardConDistancia(
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = clinica.telefono,
                     style = MaterialTheme.typography.bodySmall,
@@ -331,24 +374,40 @@ private fun ClinicaCardConDistancia(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             AssistChip(
                 onClick = {},
-                label = { Text(if (clinica.abierta) "Abierta 24h" else "Cerrada") },
+                label = {
+                    Text(
+                        text = if (clinica.abierta) "Atención 24 Horas" else "Cerrada",
+                        fontWeight = FontWeight.Medium
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Filled.CheckCircle,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
+                        tint = if (clinica.abierta) Color(0xFF10B981) else Color(0xFFEF4444)
                     )
                 },
                 colors = AssistChipDefaults.assistChipColors(
                     containerColor = if (clinica.abierta)
-                        MaterialTheme.colorScheme.secondaryContainer
+                        Color(0xFF064E3B).copy(alpha = 0.25f)
                     else
-                        MaterialTheme.colorScheme.errorContainer
-                )
+                        Color(0xFF7F1D1D).copy(alpha = 0.25f),
+                    labelColor = if (clinica.abierta)
+                        Color(0xFFA7F3D0)
+                    else
+                        Color(0xFFFCA5A5)
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (clinica.abierta) Color(0xFF10B981).copy(alpha = 0.3f)
+                    else Color(0xFFEF4444).copy(alpha = 0.3f)
+                ),
+                shape = RoundedCornerShape(8.dp)
             )
         }
     }
@@ -368,29 +427,40 @@ private fun EstadoPermisoRequerido(onSolicitar: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                imageVector = Icons.Filled.LocationOn,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                modifier = Modifier.size(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             Text(
                 text = "Permiso de ubicación necesario",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "Para calcular la distancia real a las clínicas más cercanas, la aplicación necesita acceso a la ubicación de este dispositivo.",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Button(
                 onClick = onSolicitar,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = 50.dp)
                     .semantics { contentDescription = "Conceder permisos de ubicación" }
             ) {
-                Text("Conceder permisos")
+                Text("Conceder permisos", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -408,12 +478,20 @@ private fun EstadoPermisoDenegado(onReintentar: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                imageVector = Icons.Filled.LocationOff,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                modifier = Modifier.size(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
             Text(
                 text = "Permiso de ubicación denegado",
                 style = MaterialTheme.typography.titleLarge,
@@ -422,16 +500,18 @@ private fun EstadoPermisoDenegado(onReintentar: () -> Unit) {
             )
             Text(
                 text = "No es posible calcular la distancia a las clínicas sin el permiso de ubicación. Puedes concederlo para continuar la prueba.",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Button(
                 onClick = onReintentar,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = 50.dp)
                     .semantics { contentDescription = "Reintentar solicitud de permiso de ubicación" }
             ) {
-                Text("Reintentar permiso")
+                Text("Reintentar permiso", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -448,14 +528,19 @@ private fun EstadoBuscandoUbicacion() {
             },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            CircularProgressIndicator()
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Buscando señal de ubicación...",
-                style = MaterialTheme.typography.bodyMedium
+                text = "Buscando ubicación satelital...",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Calculando coordenadas GPS en tiempo real",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -469,25 +554,44 @@ private fun EstadoUbicacionDetenida(ultimaHora: String, total: Int) {
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
         ) {
-            Icon(
-                imageVector = Icons.Filled.CheckCircle,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "Ubicación detenida",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "El sensor GPS ha sido liberado correctamente. Total de lecturas: $total (última: $ultimaHora).",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Ubicación Detenida",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Sensor GPS liberado exitosamente.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (ultimaHora.isNotEmpty()) {
+                    Text(
+                        text = "Última muestra a las $ultimaHora ($total actualizaciones)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
@@ -500,10 +604,30 @@ private fun EstadoError(mensaje: String) {
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "Error: $mensaje",
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Error al obtener ubicación",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    text = mensaje,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+        }
     }
 }

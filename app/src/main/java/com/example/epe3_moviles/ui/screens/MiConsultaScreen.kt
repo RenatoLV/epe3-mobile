@@ -1,17 +1,26 @@
 package com.example.epe3_moviles.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
@@ -20,25 +29,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.epe3_moviles.BuildConfig
-import com.example.epe3_moviles.ui.theme.EPE3_MovilesTheme
+import com.example.epe3_moviles.ui.theme.*
 
 /**
  * Pantalla principal "Mi Consulta".
  *
- * Muestra la próxima cita médica y tres accesos rápidos a las otras secciones.
- * En la parte superior incluye un banner que identifica claramente la variante
- * de compilación activa:
- *  - BASELINE DIDÁCTICO: versión destinada a medir problemas de rendimiento.
- *  - OPTIMIZED: versión con las optimizaciones implementadas.
- *
- * Esta distinción es para uso académico y de comparación; ninguna variante
- * representa una aplicación de salud en producción.
- *
- * Accesibilidad:
- * - Objetivos táctiles ≥ 56 dp.
- * - contentDescription en cada botón para TalkBack.
- * - El banner de variante tiene su propio contentDescription completo.
- * - Contraste ≥ 4.5:1 mediante tokens de Material 3.
+ * Presenta un diseño clínico moderno inspirado en aplicaciones de salud líderes:
+ * - Encabezado personalizado con avatar del paciente.
+ * - Banner de variante académica con estética limpia y legible.
+ * - Tarjeta destacada de próxima cita con indicadores de estado.
+ * - Accesos rápidos en formato de tarjetas interactivas con iconografía distintiva.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,15 +54,32 @@ fun MiConsultaScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Mi Consulta",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Filled.MedicalServices,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Mi Consulta",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         }
@@ -70,134 +87,115 @@ fun MiConsultaScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Banner de variante — visible y accesible, identifica el propósito
+            // Banner de variante académica
             FlavorBanner(isBaseline = isBaseline)
 
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Bienvenida
-                Text(
-                    text = "Hola, Renato",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+            // Encabezado de bienvenida con avatar del paciente
+            UserHeaderCard()
 
-                // Tarjeta de próxima cita
-                ProximaCitaCard()
+            // Tarjeta destacada de Próxima Cita
+            ProximaCitaCard(onNavigateToVideoconsulta = onNavigateToVideoconsulta)
 
-                // Sección de accesos rápidos
-                Text(
-                    text = "Accesos rápidos",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+            // Sección de Accesos Rápidos
+            Text(
+                text = "Servicios y Accesos Rápidos",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = 4.dp)
+            )
 
-                AccesoRapidoButton(
-                    label = "Historial Clínico",
-                    description = "Ir a Historial Clínico",
-                    icon = Icons.Filled.DateRange,
-                    onClick = onNavigateToHistorial
-                )
+            AccesoRapidoCard(
+                titulo = "Historial Clínico",
+                subtitulo = "220 consultas, diagnósticos y recetas",
+                badgeTexto = if (isBaseline) "Monolítico" else "Paging 3",
+                icon = Icons.Filled.CalendarMonth,
+                iconBackgroundColor = Color(0xFF0284C7).copy(alpha = 0.15f),
+                iconTintColor = Color(0xFF38BDF8),
+                onClick = onNavigateToHistorial,
+                contentDescription = "Ir a Historial Clínico"
+            )
 
-                AccesoRapidoButton(
-                    label = "Videoconsulta",
-                    description = "Ir a Videoconsulta",
-                    icon = Icons.Filled.VideoCall,
-                    onClick = onNavigateToVideoconsulta
-                )
+            AccesoRapidoCard(
+                titulo = "Videoconsulta WebRTC",
+                subtitulo = "Conexión local en loopback (cámara y audio)",
+                badgeTexto = if (isBaseline) "Main Thread" else "Asíncrono",
+                icon = Icons.Filled.Videocam,
+                iconBackgroundColor = Color(0xFF10B981).copy(alpha = 0.15f),
+                iconTintColor = Color(0xFF34D399),
+                onClick = onNavigateToVideoconsulta,
+                contentDescription = "Ir a Videoconsulta WebRTC"
+            )
 
-                AccesoRapidoButton(
-                    label = "Clínicas cercanas",
-                    description = "Ir a Clínicas cercanas",
-                    icon = Icons.Filled.LocationOn,
-                    onClick = onNavigateToClinicas
-                )
-            }
+            AccesoRapidoCard(
+                titulo = "Clínicas Cercanas",
+                subtitulo = "Ubicación en tiempo real y distancias GPS",
+                badgeTexto = if (isBaseline) "2s High Accuracy" else "30s Balanced",
+                icon = Icons.Filled.LocationOn,
+                iconBackgroundColor = Color(0xFF6366F1).copy(alpha = 0.15f),
+                iconTintColor = Color(0xFF818CF8),
+                onClick = onNavigateToClinicas,
+                contentDescription = "Ir a Clínicas Cercanas"
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 /**
- * Banner visible en la pantalla principal que identifica la variante activa.
- *
- * BASELINE DIDÁCTICO: variante diseñada para exhibir problemas de rendimiento
- * medibles (mayor consumo de CPU, memoria, red o batería). No representa un
- * error real descubierto en producción; es un escenario controlado de
- * comparación académica.
- *
- * OPTIMIZED: variante con las optimizaciones implementadas. Muestra el mismo
- * trabajo funcional con mejor eficiencia de recursos.
- *
- * El banner tiene contentDescription completo para que TalkBack lo anuncie
- * al navegar a esta pantalla.
+ * Banner superior que identifica con estilo profesional la variante activa.
  */
 @Composable
-private fun FlavorBanner(
-    isBaseline: Boolean,
-) {
-    val label: String
-    val description: String
-    val backgroundColor: Color
-    val contentColor: Color
-    val emoji: String
-
-    if (isBaseline) {
-        label = "BASELINE DIDÁCTICO"
-        description = "Variante BASELINE DIDÁCTICO activa. " +
-            "Esta versión está diseñada para medir cuellos de botella de " +
-            "rendimiento en un ejercicio académico de comparación. " +
-            "No representa una aplicación en producción."
-        backgroundColor = Color(0xFFFFF3CD)   // amarillo suave — contraste OK sobre texto oscuro
-        contentColor = Color(0xFF664D00)
-        emoji = "⚗️"
-    } else {
-        label = "OPTIMIZED"
-        description = "Variante OPTIMIZED activa. " +
-            "Esta versión aplica las técnicas de optimización del ejercicio académico " +
-            "para comparar su rendimiento frente a la variante baseline. " +
-            "No representa una aplicación en producción."
-        backgroundColor = Color(0xFFD4EDDA)   // verde suave — contraste OK sobre texto oscuro
-        contentColor = Color(0xFF155724)
-        emoji = "✅"
-    }
+private fun FlavorBanner(isBaseline: Boolean) {
+    val borderColor = if (isBaseline) Color(0xFFF59E0B) else Color(0xFF10B981)
+    val bgColor = if (isBaseline) Color(0xFF78350F).copy(alpha = 0.25f) else Color(0xFF064E3B).copy(alpha = 0.25f)
+    val textColor = if (isBaseline) Color(0xFFFDE68A) else Color(0xFFA7F3D0)
+    val tagText = if (isBaseline) "BASELINE DIDÁCTICO" else "OPTIMIZADO"
 
     Surface(
-        color = backgroundColor,
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = description }
+            .border(1.dp, borderColor.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .semantics {
+                contentDescription = "Variante activa: $tagText. " +
+                        if (isBaseline) "Versión didáctica con problemas intencionales para medición de rendimiento."
+                        else "Versión optimizada con mejoras de rendimiento aplicadas."
+            },
+        color = bgColor,
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = emoji,
-                style = MaterialTheme.typography.bodyLarge
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = borderColor,
+                modifier = Modifier.size(20.dp)
             )
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge,
+                    text = tagText,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = contentColor
+                    color = textColor
                 )
                 Text(
                     text = if (isBaseline)
-                        "Versión con problemas intencionales para medición académica"
+                        "Modo didáctico para evaluar impacto de recursos"
                     else
-                        "Versión con optimizaciones aplicadas para comparación académica",
+                        "Modo de alto rendimiento con optimizaciones activas",
                     style = MaterialTheme.typography.bodySmall,
-                    color = contentColor
+                    color = textColor.copy(alpha = 0.9f)
                 )
             }
         }
@@ -205,105 +203,262 @@ private fun FlavorBanner(
 }
 
 /**
- * Tarjeta que muestra la próxima cita médica ficticia.
+ * Encabezado con saludo y avatar del usuario.
  */
 @Composable
-private fun ProximaCitaCard() {
+private fun UserHeaderCard() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "¡Hola, Renato!",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Portal de atención médica ambulatoria",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Avatar con iniciales
+        Surface(
+            modifier = Modifier.size(48.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "RN",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Tarjeta de próxima cita médica con estética moderna y badges de estado.
+ */
+@Composable
+private fun ProximaCitaCard(onNavigateToVideoconsulta: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
             .semantics {
-                contentDescription =
-                    "Próxima cita: Dra. Isabel Fuentes, Medicina General, " +
-                    "lunes 29 de septiembre de 2026 a las 10:30. Datos ficticios de prueba."
+                contentDescription = "Próxima cita programada: Dra. Isabel Fuentes, Medicina General, Lunes 29 de septiembre a las 10:30"
             },
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+            // Header con tag CONFIRMADA y fecha
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    color = Color(0xFF10B981).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "● CONFIRMADA",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF34D399),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
                 Text(
-                    text = "Próxima cita  ·  [DATOS FICTICIOS]",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    text = "[DATOS FICTICIOS]",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Dra. Isabel Fuentes",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Text(
-                text = "Medicina General",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+            // Datos del médico
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    modifier = Modifier.size(46.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = "📅  Lunes 29 sep 2026  ·  10:30",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+                Column {
+                    Text(
+                        text = "Dra. Isabel Fuentes",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Medicina General · Teleconsulta",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Horario de atención
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Lunes 29 sep 2026  ·  10:30 hrs",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * Botón de acceso rápido con ícono, etiqueta y descripción para TalkBack.
- * Alto mínimo de 56 dp (requisito WCAG 2.5.5).
+ * Tarjeta interactiva para cada acceso rápido con iconos temáticos y badges.
  */
 @Composable
-private fun AccesoRapidoButton(
-    label: String,
-    description: String,
+private fun AccesoRapidoCard(
+    titulo: String,
+    subtitulo: String,
+    badgeTexto: String,
     icon: ImageVector,
-    onClick: () -> Unit
+    iconBackgroundColor: Color,
+    iconTintColor: Color,
+    onClick: () -> Unit,
+    contentDescription: String
 ) {
-    Button(
+    Surface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .semantics { contentDescription = description },
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+            .heightIn(min = 72.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+            .semantics { this.contentDescription = contentDescription },
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Row(
+            modifier = Modifier
+                .padding(14.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icono en contenedor circular suave
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(iconBackgroundColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTintColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Título y subtítulo
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = titulo,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = badgeTexto,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = subtitulo,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Flecha indicadora
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }
 
 // ── Previews ──────────────────────────────────────────────────────────────────
 
-@Preview(showBackground = true, name = "Mi Consulta — preview (baseline)")
+@Preview(showBackground = true, name = "Mi Consulta — preview")
 @Composable
-private fun MiConsultaBaselinePreview() {
+private fun MiConsultaPreview() {
     EPE3_MovilesTheme {
-        // La preview no puede leer BuildConfig.FLAVOR en tiempo de diseño,
-        // así que llamamos directamente al composable con parámetros vacíos.
-        // El banner usa el valor real de BuildConfig en el dispositivo.
         MiConsultaScreen(
             onNavigateToHistorial = {},
             onNavigateToVideoconsulta = {},
