@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MedicalInformation
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -66,6 +67,7 @@ fun HistorialClinicoScreen(
 
     // Para OPTIMIZED: flujo paginado de Paging 3 (20 items/página)
     val pagingItems = viewModel.pagingConsultasFlow.collectAsLazyPagingItems()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     Scaffold(
         topBar = {
@@ -111,6 +113,21 @@ fun HistorialClinicoScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
+            // Buscador
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text("Buscar por doctor, diagnóstico o receta...") },
+                leadingIcon = {
+                    Icon(imageVector = androidx.compose.material.icons.Icons.Default.Search, contentDescription = "Buscar")
+                },
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
             // Banner de la variante indicando la estrategia de Room
             RoomFlavorBanner(
                 isBaseline = isBaseline,

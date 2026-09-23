@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -49,18 +50,35 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isLoading = MutableStateFlow(value = true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // Flujo para la búsqueda
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     // Flujo para OPTIMIZED: Paging 3 con páginas de 20 elementos
-    val pagingConsultasFlow: Flow<PagingData<ConsultaEntity>> = Pager(
-        config = PagingConfig(
-            pageSize = 20,
-            prefetchDistance = 5,
-            enablePlaceholders = false,
-        ),
-        pagingSourceFactory = dao::getPagingConsultas,
-    ).flow.cachedIn(viewModelScope)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val pagingConsultasFlow: Flow<PagingData<ConsultaEntity>> = _searchQuery
+        .flatMapLatest { query ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 20,
+                    prefetchDistance = 5,
+                    enablePlaceholders = false,
+                ),
+                pagingSourceFactory = { 
+                    if (query.isBlank()) dao.getPagingConsultas() else dao.searchPagingConsultas(query) 
+                },
+            ).flow
+        }.cachedIn(viewModelScope)
 
     init {
         cargarDatos()
+    }
+
+    fun updateSearchQuery(newQuery: String) {
+        _searchQuery.value = newQuery
+        if (isBaseline) {
+            cargarDatos() // Reloads baseline to filter
+        }
     }
 
     @Suppress("unused")
@@ -79,7 +97,11 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
             if (isBaseline) {
                 // Medir tiempo de consulta completa de todos los registros
                 val startTime = System.currentTimeMillis()
-                val items = dao.getAllConsultas()
+                val items = if (_searchQuery.value.isBlank()) {
+                    dao.getAllConsultas()
+                } else {
+                    dao.searchAllConsultas(_searchQuery.value)
+                }
                 val elapsed = System.currentTimeMillis() - startTime
                 _tiempoConsultaBaselineMs.value = elapsed
                 _baselineConsultas.value = items

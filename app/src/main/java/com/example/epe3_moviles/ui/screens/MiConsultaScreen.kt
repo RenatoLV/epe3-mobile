@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -99,8 +100,8 @@ fun MiConsultaScreen(
             // Encabezado de bienvenida con avatar del paciente
             UserHeaderCard()
 
-            // Tarjeta destacada de Próxima Cita
-            ProximaCitaCard(onNavigateToVideoconsulta = onNavigateToVideoconsulta)
+            // Lista de doctores seleccionables
+            DoctoresSelectionCard(onNavigateToVideoconsulta = onNavigateToVideoconsulta)
 
             // Sección de Accesos Rápidos
             Text(
@@ -247,111 +248,134 @@ private fun UserHeaderCard() {
     }
 }
 
+data class DoctorFicticio(
+    val id: Int,
+    val nombre: String,
+    val especialidad: String,
+    val disponible: Boolean,
+    val horario: String?
+)
+
+val listaDoctores = listOf(
+    DoctorFicticio(1, "Dra. Isabel Fuentes", "Medicina General", true, "10:30 hrs"),
+    DoctorFicticio(2, "Dr. Carlos Medina", "Pediatría", false, null),
+    DoctorFicticio(3, "Dra. Laura Soto", "Dermatología", true, "14:15 hrs")
+)
+
 /**
- * Tarjeta de próxima cita médica con estética moderna y badges de estado.
+ * Sección de selección de doctores con tarjetas dinámicas.
  */
 @Composable
-private fun ProximaCitaCard(onNavigateToVideoconsulta: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-            .semantics {
-                contentDescription = "Próxima cita programada: Dra. Isabel Fuentes, Medicina General, Lunes 29 de septiembre a las 10:30"
-            },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+private fun DoctoresSelectionCard(onNavigateToVideoconsulta: () -> Unit) {
+    Column {
+        Text(
+            text = "Especialistas Disponibles",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header con tag CONFIRMADA y fecha
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    color = Color(0xFF10B981).copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = "● CONFIRMADA",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF34D399),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(listaDoctores) { doctor ->
+                Card(
+                    modifier = Modifier
+                        .width(220.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                        .clickable(enabled = doctor.disponible) {
+                            if (doctor.disponible) onNavigateToVideoconsulta()
+                        }
+                        .semantics {
+                            contentDescription = "Doctor ${doctor.nombre}, ${doctor.especialidad}, ${if(doctor.disponible) "Disponible" else "No disponible"}"
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (doctor.disponible) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
-                }
-
-                Text(
-                    text = "[DATOS FICTICIOS]",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Datos del médico
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    modifier = Modifier.size(46.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp)
-                        )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                color = if (doctor.disponible) Color(0xFF10B981).copy(alpha = 0.2f) else Color(0xFFEF4444).copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = if (doctor.disponible) "● DISPONIBLE" else "● OCUPADO",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (doctor.disponible) Color(0xFF34D399) else Color(0xFFF87171),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = if (doctor.disponible) 0.15f else 0.05f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = if (doctor.disponible) MaterialTheme.colorScheme.primary else Color.Gray,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = doctor.nombre,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (doctor.disponible) MaterialTheme.colorScheme.onSurface else Color.Gray
+                                )
+                                Text(
+                                    text = doctor.especialidad,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (doctor.disponible) MaterialTheme.colorScheme.primary else Color.Gray
+                                )
+                            }
+                        }
+
+                        if (doctor.horario != null && doctor.disponible) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarMonth,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Hoy · ${doctor.horario}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                    Text(
-                        text = "Dra. Isabel Fuentes",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Medicina General · Teleconsulta",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Horario de atención
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Lunes 29 sep 2026  ·  10:30 hrs",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
                 }
             }
         }

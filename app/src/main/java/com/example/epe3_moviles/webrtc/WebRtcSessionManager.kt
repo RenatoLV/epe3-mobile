@@ -55,6 +55,18 @@ class WebRtcSessionManager(private val context: Context) {
     private val pendingRemoteIceCandidates = CopyOnWriteArrayList<IceCandidate>()
 
     /**
+     * Contexto EGL requerido para inicializar SurfaceViewRenderer en la UI.
+     */
+    val eglContext: EglBase.Context?
+        get() = eglBase?.eglBaseContext
+
+    /**
+     * Pista de video local para renderizar en la UI.
+     */
+    val videoTrack: VideoTrack?
+        get() = localVideoTrack
+
+    /**
      * Inicializa el pipeline de WebRTC (PeerConnectionFactory, Audio, Video).
      *
      * @return Par con (videoActivo: Boolean, infoCamara: String)

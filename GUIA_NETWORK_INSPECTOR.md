@@ -18,9 +18,11 @@ Esto creará:
 - `scripts/public/images/optimized/medico_[1-8].webp`: 8 imágenes WebP optimizadas a 480 px (~80-190 KB c/u, ~0.9 MB total).
 
 ### Paso 1.2: Iniciar el servidor HTTP local
-En una ventana de terminal dedicada, ejecuta:
+En una ventana de terminal dedicada, ejecuta cualquiera de los siguientes comandos:
 ```powershell
 node scripts/image_server.js
+node scripts/image_server.js 8091
+node scripts/image_server.js --port 8091
 ```
 Verifica que aparezca el mensaje:
 ```

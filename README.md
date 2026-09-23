@@ -218,6 +218,12 @@ en producción.
 - **Conjunto de datos reproducible:** `ConsultaFicticiaDataGenerator` genera exactamente **220 consultas clínicas ficticias** con diagnósticos y tratamientos realistas distribuidos entre 8 médicos.
 - **Base de datos:** `AppDatabase` (SQLite/Room) con pre-poblado automático de las 220 consultas.
 - **Imágenes HTTP:** Cada consulta enlaza con `NetworkConfig.getFotoMedicoUrl(medicoId)` servida por `scripts/image_server.js` (fotos originales en baseline, WebP en optimized).
+  Para ejecutar el servidor:
+  ```powershell
+  node scripts/image_server.js
+  node scripts/image_server.js 8091
+  node scripts/image_server.js --port 8091
+  ```
 
 ### Comparación Medible entre Variantes
 

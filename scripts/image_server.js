@@ -18,7 +18,19 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const requestedPort = parseInt(process.env.PORT || process.argv[2] || '8085', 10);
+let parsedPort = 8085;
+if (process.env.PORT) {
+  parsedPort = parseInt(process.env.PORT, 10);
+} else if (process.argv.length > 2) {
+  const arg2 = process.argv[2];
+  if (arg2 === '--port' && process.argv.length > 3) {
+    parsedPort = parseInt(process.argv[3], 10);
+  } else {
+    parsedPort = parseInt(arg2, 10);
+  }
+}
+if (isNaN(parsedPort)) parsedPort = 8085;
+const requestedPort = parsedPort;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 function getLocalIps() {

@@ -21,6 +21,23 @@ import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 
+data class Profesional(
+    val id: Int,
+    val nombre: String,
+    val especialidad: String
+)
+
+val profesionalesDisponibles = listOf(
+    Profesional(1, "Dr. Andrés Morales", "Cardiología"),
+    Profesional(2, "Dra. Isabel Fuentes", "Medicina General"),
+    Profesional(3, "Dr. Carlos Leiva", "Traumatología"),
+    Profesional(4, "Dra. Valentina Ríos", "Dermatología"),
+    Profesional(5, "Dr. Sebastián Torres", "Gastroenterología"),
+    Profesional(6, "Dra. Camila Espinoza", "Oftalmología"),
+    Profesional(7, "Dr. Felipe Navarro", "Neurología"),
+    Profesional(8, "Dra. Patricia Vega", "Endocrinología")
+)
+
 /**
  * ViewModel que orquesta la sesión de Videoconsulta WebRTC en loopback.
  *
@@ -50,8 +67,21 @@ class VideoconsultaViewModel(application: Application) : AndroidViewModel(applic
     private val _state = MutableStateFlow<WebRtcState>(WebRtcState.Idle)
     val state: StateFlow<WebRtcState> = _state.asStateFlow()
 
+    private val _profesionales = MutableStateFlow(profesionalesDisponibles)
+    val profesionales: StateFlow<List<Profesional>> = _profesionales.asStateFlow()
+
+    private val _profesionalSeleccionado = MutableStateFlow(profesionalesDisponibles.first())
+    val profesionalSeleccionado: StateFlow<Profesional> = _profesionalSeleccionado.asStateFlow()
+
+    val eglContext get() = sessionManager.eglContext
+    val videoTrack get() = sessionManager.videoTrack
+
     private var durationJob: Job? = null
     private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
+
+    fun seleccionarProfesional(profesional: Profesional) {
+        _profesionalSeleccionado.value = profesional
+    }
 
     private fun logTimestamp(msg: String) {
         val hora = timeFormat.format(Date())

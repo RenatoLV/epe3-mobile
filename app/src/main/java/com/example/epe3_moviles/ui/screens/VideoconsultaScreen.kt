@@ -15,8 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -42,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.epe3_moviles.webrtc.WebRtcState
+import org.webrtc.SurfaceViewRenderer
+import org.webrtc.RendererCommon
+import androidx.compose.ui.viewinterop.AndroidView
 
 /**
  * Pantalla de Videoconsulta con conexión WebRTC real en Loopback.
@@ -59,6 +64,8 @@ fun VideoconsultaScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
+    val profesionales by viewModel.profesionales.collectAsState()
+    val profesionalSeleccionado by viewModel.profesionalSeleccionado.collectAsState()
 
     var camaraMuted by remember { mutableStateOf(false) }
     var microfonoMuted by remember { mutableStateOf(false) }
@@ -159,11 +166,16 @@ fun VideoconsultaScreen(
             // Contenedor principal de video / streaming loopback
             VideoDisplayCard(
                 state = state,
-                camaraMuted = camaraMuted
+                camaraMuted = camaraMuted,
+                viewModel = viewModel
             )
 
             // Tarjeta de información del médico y la cita programada
-            DoctorCallInfoCard()
+            DoctorCallInfoCard(
+                profesionalSeleccionado = profesionalSeleccionado,
+                profesionales = profesionales,
+                onProfesionalSelected = { viewModel.seleccionarProfesional(it) }
+            )
 
             // Chip accesible de estado
             StatusChip(state = state)
@@ -316,7 +328,8 @@ private fun VarianteBanner(isBaseline: Boolean) {
 @Composable
 private fun VideoDisplayCard(
     state: WebRtcState,
-    camaraMuted: Boolean
+    camaraMuted: Boolean,
+    viewModel: VideoconsultaViewModel
 ) {
     Surface(
         modifier = Modifier
@@ -407,11 +420,11 @@ private fun VideoDisplayCard(
                             .fillMaxSize()
                             .background(Color(0xFF0F172A))
                     ) {
-                        Column(
-                            modifier = Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            if (camaraMuted) {
+                        if (camaraMuted) {
+                            Column(
+                                modifier = Modifier.align(Alignment.Center),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                                 Icon(
                                     imageVector = Icons.Filled.VideocamOff,
                                     contentDescription = "Cámara pausada",
@@ -424,25 +437,53 @@ private fun VideoDisplayCard(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color(0xFF94A3B8)
                                 )
+                            }
+                        } else {
+                            val context = LocalContext.current
+                            val eglContext = viewModel.eglContext
+                            val videoTrack = viewModel.videoTrack
+                            
+                            if (eglContext != null && videoTrack != null) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        SurfaceViewRenderer(ctx).apply {
+                                            init(eglContext, null)
+                                            setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+                                            setEnableHardwareScaler(true)
+                                            setMirror(true) // Mirror para cámara frontal
+                                            videoTrack.addSink(this)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+                                    onRelease = { renderer ->
+                                        videoTrack.removeSink(renderer)
+                                        renderer.release()
+                                    }
+                                )
                             } else {
-                                Icon(
-                                    imageVector = Icons.Filled.Videocam,
-                                    contentDescription = "Video activo",
-                                    modifier = Modifier.size(54.dp),
-                                    tint = Color(0xFF34D399)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = state.infoCamara,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Streaming WebRTC Loopback bidireccional",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF94A3B8)
-                                )
+                                Column(
+                                    modifier = Modifier.align(Alignment.Center),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Videocam,
+                                        contentDescription = "Video activo",
+                                        modifier = Modifier.size(54.dp),
+                                        tint = Color(0xFF34D399)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = state.infoCamara,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "Sin pista de video disponible",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                }
                             }
                         }
 
@@ -560,10 +601,16 @@ private fun VideoDisplayCard(
 }
 
 /**
- * Tarjeta de información del médico asignado.
+ * Tarjeta de información del médico asignado con opción de cambio.
  */
 @Composable
-private fun DoctorCallInfoCard() {
+private fun DoctorCallInfoCard(
+    profesionalSeleccionado: Profesional,
+    profesionales: List<Profesional>,
+    onProfesionalSelected: (Profesional) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -573,42 +620,75 @@ private fun DoctorCallInfoCard() {
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                modifier = Modifier.size(46.dp)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth()
+                    .clickable { expanded = true },
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(26.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    modifier = Modifier.size(46.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        coil.compose.AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(com.example.epe3_moviles.config.NetworkConfig.getFotoMedicoUrl(profesionalSeleccionado.id))
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Foto de ${profesionalSeleccionado.nombre}",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = profesionalSeleccionado.nombre,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "${profesionalSeleccionado.especialidad} · Teleconsulta WebRTC",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
                     )
                 }
+
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Seleccionar profesional",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Dra. Isabel Fuentes",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Medicina General · Teleconsulta WebRTC",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
-                )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(0.9f)
+            ) {
+                profesionales.forEach { profesional ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(text = profesional.nombre, fontWeight = FontWeight.Bold)
+                                Text(text = profesional.especialidad, style = MaterialTheme.typography.bodySmall)
+                            }
+                        },
+                        onClick = {
+                            onProfesionalSelected(profesional)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }

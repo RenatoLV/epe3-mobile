@@ -19,7 +19,7 @@ object NetworkConfig {
      * Por defecto usa puerto 8085 (o 8080 según el puerto donde inicies scripts/image_server.js).
      * En teléfono físico, reemplazar por tu IP LAN (ej. "http://192.168.96.156:8085").
      */
-    var BASE_URL: String = "http://10.0.2.2:8085"
+    var BASE_URL: String = "http://127.0.0.1:8085"
 
     /**
      * Retorna la URL remota para la fotografía de perfil del médico según la variante:

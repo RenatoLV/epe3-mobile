@@ -46,6 +46,12 @@ interface ConsultaDao {
     @Query("SELECT * FROM consultas ORDER BY fecha DESC")
     fun getPagingConsultas(): PagingSource<Int, ConsultaEntity>
 
+    @Query("SELECT * FROM consultas WHERE medicoNombre LIKE '%' || :query || '%' OR diagnostico LIKE '%' || :query || '%' OR tratamiento LIKE '%' || :query || '%' ORDER BY fecha DESC")
+    suspend fun searchAllConsultas(query: String): List<ConsultaEntity>
+
+    @Query("SELECT * FROM consultas WHERE medicoNombre LIKE '%' || :query || '%' OR diagnostico LIKE '%' || :query || '%' OR tratamiento LIKE '%' || :query || '%' ORDER BY fecha DESC")
+    fun searchPagingConsultas(query: String): PagingSource<Int, ConsultaEntity>
+
     /**
      * Limpia la tabla para permitir reinicios limpios en pruebas de rendimiento.
      */
