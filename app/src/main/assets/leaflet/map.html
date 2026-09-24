@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Red Asistencial de Clínicas</title>
+  <link rel="stylesheet" href="leaflet.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    html, body, #map {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Fondo de cuadrícula táctica cuando cargan teselas o modo sin conexión */
+    #map {
+      background-color: #0f172a;
+      background-image:
+        linear-gradient(to right, rgba(51, 65, 85, 0.25) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(51, 65, 85, 0.25) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* Marcador del Usuario (Pulsing Radar Pin) */
+    .user-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .user-dot {
+      width: 18px;
+      height: 18px;
+      background: #0284c7;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+      z-index: 2;
+    }
+    .user-pulse {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      background: rgba(56, 189, 248, 0.35);
+      border-radius: 50%;
+      animation: radar-pulse 2s infinite cubic-bezier(0.2, 0.6, 0.3, 1);
+      z-index: 1;
+    }
+    @keyframes radar-pulse {
+      0% {
+        transform: scale(0.35);
+        opacity: 0.9;
+      }
+      100% {
+        transform: scale(1.6);
+        opacity: 0;
+      }
+    }
+
+    /* Pines Médicos de Clínicas */
+    .clinic-pin-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .clinic-pin-wrapper:active, .clinic-pin-wrapper.selected {
+      transform: scale(1.22);
+    }
+    .clinic-pin {
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+      border: 2px solid #ffffff;
+      transition: all 0.2s ease;
+    }
+    .clinic-pin.open {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .clinic-pin.closed {
+      background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    }
+    .clinic-pin.selected {
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.7), 0 6px 14px rgba(0, 0, 0, 0.4);
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    }
+    .clinic-cross {
+      transform: rotate(45deg);
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 900;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .clinic-label-badge {
+      margin-top: 3px;
+      background: rgba(15, 23, 42, 0.88);
+      color: #f8fafc;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+    }
+
+    /* Floating UI Controls */
+    .map-controls-top {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .map-btn {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #e2e8f0;
+      border: 1px solid rgba(71, 85, 105, 0.7);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      transition: all 0.15s ease;
+    }
+    .map-btn:active {
+      transform: scale(0.95);
+      background: rgba(30, 41, 59, 0.95);
+    }
+    .map-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+    }
+    .map-btn svg {
+      width: 15px;
+      height: 15px;
+      fill: currentColor;
+    }
+
+    /* Leaflet Popup Styling */
+    .leaflet-popup-content-wrapper {
+      background: #1e293b !important;
+      color: #f8fafc !important;
+      border-radius: 14px !important;
+      border: 1px solid rgba(100, 116, 139, 0.4) !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-tip {
+      background: #1e293b !important;
+      border: 1px solid rgba(100, 116, 139, 0.4) !important;
+    }
+    .popup-box {
+      padding: 10px 14px;
+    }
+    .popup-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+    .popup-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .popup-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(2, 132, 199, 0.25);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Botones de Control Superpuestos -->
+  <div class="map-controls-top">
+    <!-- Toggle Calles / Satélite -->
+    <button id="btnLayer" class="map-btn" onclick="toggleLayer()">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span id="layerText">Satélite</span>
+    </button>
+    <!-- Centrar en Usuario -->
+    <button class="map-btn" onclick="centerOnUser()">
+      <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+      <span>Mi Ubicación</span>
+    </button>
+  </div>
+
+  <script src="leaflet.js"></script>
+  <script>
+    var map;
+    var streetLayer;
+    var satelliteLayer;
+    var isSatellite = false;
+    var userMarker = null;
+    var userAccuracyCircle = null;
+    var clinicMarkers = {};
+    var currentClinics = [];
+    var currentUserLat = -29.9533;
+    var currentUserLon = -71.3395;
+    var selectedClinicId = null;
+
+    // Inicializar mapa
+    function initMap(initialLat, initialLon) {
+      currentUserLat = initialLat || -29.9533;
+      currentUserLon = initialLon || -71.3395;
+
+      map = L.map('map', {
+        center: [currentUserLat, currentUserLon],
+        zoom: 14,
+        zoomControl: false,
+        attributionControl: false
+      });
+
+      // Capa de Calles (OpenStreetMap / CartoDB Voyager estilo médico amigable)
+      streetLayer = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      }).addTo(map);
+
+      // Capa Satelital (Esri World Imagery)
+      satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
+      });
+
+      // Manejo de errores de teselas para resiliencia offline/red lenta
+      streetLayer.on('tileerror', function() {
+        console.warn("Tile network slow or offline. Map retains local markers.");
+      });
+
+      // Crear icono de usuario
+      updateUser(currentUserLat, currentUserLon, 15);
+    }
+
+    // Alternar capa entre Calles y Satélite
+    function toggleLayer() {
+      if (isSatellite) {
+        map.removeLayer(satelliteLayer);
+        map.addLayer(streetLayer);
+        document.getElementById('btnLayer').classList.remove('active');
+        document.getElementById('layerText').innerText = 'Satélite';
+        isSatellite = false;
+      } else {
+        map.removeLayer(streetLayer);
+        map.addLayer(satelliteLayer);
+        document.getElementById('btnLayer').classList.add('active');
+        document.getElementById('layerText').innerText = 'Calles';
+        isSatellite = true;
+      }
+    }
+
+    // Actualizar posición del usuario con pulso animado y precisión
+    function updateUser(lat, lon, accuracyMetros) {
+      currentUserLat = lat;
+      currentUserLon = lon;
+
+      var userIcon = L.divIcon({
+        className: 'user-marker-icon',
+        html: '<div class="user-marker"><div class="user-pulse"></div><div class="user-dot"></div></div>',
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
+      });
+
+      if (!userMarker) {
+        userMarker = L.marker([lat, lon], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+      } else {
+        userMarker.setLatLng([lat, lon]);
+      }
+
+      var radius = Math.max(accuracyMetros || 15, 10);
+      if (!userAccuracyCircle) {
+        userAccuracyCircle = L.circle([lat, lon], {
+          radius: radius,
+          color: '#38bdf8',
+          weight: 1.5,
+          fillColor: '#0284c7',
+          fillOpacity: 0.12
+        }).addTo(map);
+      } else {
+        userAccuracyCircle.setLatLng([lat, lon]);
+        userAccuracyCircle.setRadius(radius);
+      }
+    }
+
+    // Centrar mapa suavemente en el usuario
+    function centerOnUser() {
+      if (userMarker) {
+        map.flyTo([currentUserLat, currentUserLon], 15, { duration: 1.2 });
+      }
+    }
+
+    // Cargar y mostrar lista de clínicas
+    function setClinics(clinicsJson, autoFit) {
+      try {
+        var clinics = typeof clinicsJson === 'string' ? JSON.parse(clinicsJson) : clinicsJson;
+        currentClinics = clinics;
+
+        // Limpiar marcadores anteriores
+        for (var id in clinicMarkers) {
+          map.removeLayer(clinicMarkers[id]);
+        }
+        clinicMarkers = {};
+
+        var bounds = [];
+        if (currentUserLat && currentUserLon) {
+          bounds.push([currentUserLat, currentUserLon]);
+        }
+
+        clinics.forEach(function(c) {
+          var isSelected = (selectedClinicId === c.id);
+          var marker = createClinicMarker(c, isSelected);
+          marker.addTo(map);
+          clinicMarkers[c.id] = marker;
+
+          // Si la clínica está cerca del usuario (< 40 km), incluir en bounds
+          var dLat = Math.abs(c.latitud - currentUserLat);
+          var dLon = Math.abs(c.longitud - currentUserLon);
+          if (dLat < 0.4 && dLon < 0.4) {
+            bounds.push([c.latitud, c.longitud]);
+          }
+        });
+
+        if (autoFit && bounds.length > 1) {
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        }
+      } catch (e) {
+        console.error("Error setting clinics:", e);
+      }
+    }
+
+    // Crear marcador personalizado con cruz médica y etiqueta de distancia
+    function createClinicMarker(clinic, isSelected) {
+      var statusClass = clinic.abierta ? 'open' : 'closed';
+      var selClass = isSelected ? 'selected' : '';
+      var html = '<div class="clinic-pin-wrapper ' + selClass + '" id="pin-' + clinic.id + '">' +
+                 '  <div class="clinic-pin ' + statusClass + ' ' + selClass + '">' +
+                 '    <span class="clinic-cross">+</span>' +
+                 '  </div>' +
+                 (clinic.distancia ? '  <div class="clinic-label-badge">' + clinic.distancia + '</div>' : '') +
+                 '</div>';
+
+      var icon = L.divIcon({
+        className: 'custom-clinic-icon',
+        html: html,
+        iconSize: [60, 54],
+        iconAnchor: [30, 48],
+        popupAnchor: [0, -48]
+      });
+
+      var marker = L.marker([clinic.latitud, clinic.longitud], { icon: icon });
+
+      // Popup informativo al tocar el pin
+      var popupContent = '<div class="popup-box">' +
+                         '  <div class="popup-title">' + clinic.nombre + '</div>' +
+                         '  <div class="popup-subtitle">' + clinic.direccion + '</div>' +
+                         '  <div class="popup-badge">' + (clinic.distancia || 'En rango') + '</div>' +
+                         '</div>';
+      marker.bindPopup(popupContent, { closeButton: false, offset: [0, -36] });
+
+      marker.on('click', function() {
+        onClinicClicked(clinic.id);
+      });
+
+      return marker;
+    }
+
+    // Manejar selección de clínica
+    function onClinicClicked(clinicId) {
+      selectedClinicId = clinicId;
+      var c = currentClinics.find(function(item) { return item.id === clinicId; });
+      if (c) {
+        map.panTo([c.latitud, c.longitud]);
+        if (clinicMarkers[clinicId]) {
+          clinicMarkers[clinicId].openPopup();
+        }
+      }
+
+      // Actualizar clases de selección
+      for (var id in clinicMarkers) {
+        var el = document.getElementById('pin-' + id);
+        if (el) {
+          if (parseInt(id) === clinicId) {
+            el.classList.add('selected');
+            el.querySelector('.clinic-pin').classList.add('selected');
+          } else {
+            el.classList.remove('selected');
+            el.querySelector('.clinic-pin').classList.remove('selected');
+          }
+        }
+      }
+
+      // Notificar a Android Compose
+      if (window.AndroidBridge && window.AndroidBridge.onClinicSelected) {
+        window.AndroidBridge.onClinicSelected(clinicId);
+      }
+    }
+
+    // Seleccionar externamente desde Compose
+    function selectClinicFromAndroid(clinicId) {
+      selectedClinicId = clinicId;
+      var c = currentClinics.find(function(item) { return item.id === clinicId; });
+      if (c && map) {
+        map.flyTo([c.latitud, c.longitud], 15, { duration: 0.8 });
+        if (clinicMarkers[clinicId]) {
+          clinicMarkers[clinicId].openPopup();
+        }
+      }
+    }
+  </script>
+</body>
+</html>

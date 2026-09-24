@@ -80,7 +80,24 @@ class VideoconsultaViewModel(application: Application) : AndroidViewModel(applic
     private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
 
     fun seleccionarProfesional(profesional: Profesional) {
+        if (_profesionalSeleccionado.value.id == profesional.id) return
+
+        val estabaEnLlamada = _state.value !is WebRtcState.Idle && _state.value !is WebRtcState.Error
+
         _profesionalSeleccionado.value = profesional
+        logTimestamp("Profesional cambiado a: ${profesional.nombre} (${profesional.especialidad})")
+
+        if (estabaEnLlamada) {
+            logTimestamp("Reiniciando videoconsulta para conectar con ${profesional.nombre}...")
+            detenerTemporizadorLlamada()
+            sessionManager.endCall("Cambio de profesional a ${profesional.nombre}")
+            _state.value = WebRtcState.Inicializando
+
+            viewModelScope.launch {
+                delay(100)
+                onPermisosConcedidos()
+            }
+        }
     }
 
     private fun logTimestamp(msg: String) {

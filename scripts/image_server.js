@@ -17,6 +17,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { exec } = require('child_process');
 
 let parsedPort = 8085;
 if (process.env.PORT) {
@@ -144,6 +145,13 @@ function createServer(port) {
     console.log('================================================================');
     console.log(` • Host local (PC):         http://localhost:${port}`);
     console.log(` • Emulador Android (AVD):  http://10.0.2.2:${port}`);
+    console.log(` • Teléfono físico (USB):   http://127.0.0.1:${port} (adb reverse)`);
+
+    exec(`adb reverse tcp:${port} tcp:${port}`, (err) => {
+      if (!err) {
+        console.log(` • ADB Reverse: Puerto ${port} enrutado automáticamente a teléfonos USB.`);
+      }
+    });
 
     const localIps = getLocalIps();
     if (localIps.length > 0) {

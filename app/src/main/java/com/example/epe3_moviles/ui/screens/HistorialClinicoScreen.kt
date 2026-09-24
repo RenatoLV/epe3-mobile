@@ -42,6 +42,7 @@ import coil.request.ImageRequest
 import coil.size.Size
 import com.example.epe3_moviles.config.NetworkConfig
 import com.example.epe3_moviles.data.local.ConsultaEntity
+import com.example.epe3_moviles.util.DoctorImageHelper
 
 /**
  * Pantalla Historial Clínico conectada a Room y Paging 3 (Paso 4).
@@ -344,32 +345,12 @@ private fun ConsultaEntityCard(
         "Consulta $numero: ${consulta.medicoNombre}, especialidad ${consulta.especialidad}, " +
         "fecha ${consulta.fechaTexto}. Diagnóstico: ${consulta.diagnostico}. Tratamiento: ${consulta.tratamiento}"
 
-    // Configuración de Coil según la variante
-    val imageRequest = if (isBaseline) {
-        ImageRequest.Builder(context)
-            .data(fotoUrl)
-            .crossfade(enable = false)
-            .memoryCachePolicy(CachePolicy.DISABLED)
-            .diskCachePolicy(CachePolicy.DISABLED)
-            .build()
-    } else {
-        ImageRequest.Builder(context)
-            .data(fotoUrl)
-            .crossfade(enable = true)
-            .size(Size(480, 480))
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
-    }
-
-    // Iniciales para fallback del avatar (ej. "Dr. Andrés Morales" -> "AM")
-    val iniciales = consulta.medicoNombre
-        .replace("Dr. ", "")
-        .replace("Dra. ", "")
-        .split(" ")
-        .mapNotNull { it.firstOrNull()?.toString() }
-        .take(2)
-        .joinToString("")
+    val imageRequest = DoctorImageHelper.buildDoctorImageRequest(
+        context = context,
+        medicoId = consulta.medicoId,
+        isBaseline = isBaseline,
+        targetSizePx = 480
+    )
 
     Card(
         modifier = Modifier
@@ -394,13 +375,13 @@ private fun ConsultaEntityCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar del médico con descarga HTTP y fallback elegante
+                // Avatar del médico con descarga HTTP y fallback local garantizado
                 Box(
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(54.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), CircleShape),
+                        .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     SubcomposeAsyncImage(
@@ -409,30 +390,24 @@ private fun ConsultaEntityCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                         loading = {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = iniciales,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(
+                                    id = DoctorImageHelper.getDoctorDrawableRes(consulta.medicoId)
+                                ),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         },
                         error = {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = iniciales,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(
+                                    id = DoctorImageHelper.getDoctorDrawableRes(consulta.medicoId)
+                                ),
+                                contentDescription = "Fotografía de ${consulta.medicoNombre}",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     )
                 }

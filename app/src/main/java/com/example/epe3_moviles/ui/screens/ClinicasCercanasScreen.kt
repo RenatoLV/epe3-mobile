@@ -1,28 +1,41 @@
 package com.example.epe3_moviles.ui.screens
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -31,17 +44,21 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.epe3_moviles.location.ClinicaModel
+import com.example.epe3_moviles.ui.components.ClinicasMapComponent
 
 /**
- * Pantalla Clínicas Cercanas adaptada para medición de energía y geolocalización (Paso 5).
+ * Pantalla Clínicas Cercanas optimizada para alta resiliencia y experiencia de usuario moderna (Paso 5).
  *
- * Diseño clínico modernizado:
- * - Tarjetas con badges destacados de distancia (fórmula Haversine).
- * - Indicadores claros de estado abierto/cerrado.
- * - Banner con información de frecuencia GPS de alto contraste.
+ * Mejoras UI/UX y Conexión:
+ * - Mapa interactivo vectorial integrado: visualiza al usuario y a los centros de salud en tiempo real.
+ * - Modo resiliente: ante mala conexión o satélites demorados, carga inmediatamente la información
+ *   referencial de Santiago sin bloquear al usuario en "Buscando ubicación".
+ * - Botones directos para navegación GPS en Google Maps/Waze y llamadas telefónicas.
+ * - Paleta clínica refinada con tonos Slate, Emerald y Sky inspirados en Tailwind.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +143,18 @@ fun ClinicasCercanasScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = { viewModel.reintentarGps() },
+                        modifier = Modifier.semantics { contentDescription = "Reintentar o refrescar GPS" }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -170,18 +199,24 @@ fun ClinicasCercanasScreen(
                     )
                 }
                 is ClinicasLocationState.BuscandoUbicacion -> {
-                    EstadoBuscandoUbicacion()
+                    EstadoBuscandoUbicacion(
+                        onForzarReferencial = { viewModel.usarUbicacionReferencialManual() }
+                    )
                 }
                 is ClinicasLocationState.UbicacionDisponible -> {
-                    ListaClinicasConDistancia(
-                        clinicasConDistancia = s.clinicasConDistancia
+                    ContenidoMapaYLista(
+                        estado = s,
+                        onReintentarGps = { viewModel.reintentarGps() }
                     )
                 }
                 is ClinicasLocationState.UbicacionDetenida -> {
                     EstadoUbicacionDetenida(ultimaHora = s.ultimaHora, total = s.totalActualizaciones)
                 }
                 is ClinicasLocationState.Error -> {
-                    EstadoError(mensaje = s.mensaje)
+                    EstadoError(
+                        mensaje = s.mensaje,
+                        onUsarReferencial = { viewModel.usarUbicacionReferencialManual() }
+                    )
                 }
             }
         }
@@ -204,9 +239,10 @@ private fun GpsFlavorBanner(isBaseline: Boolean, state: ClinicasLocationState) {
 
     val detalle = when (state) {
         is ClinicasLocationState.UbicacionDisponible ->
-            "Muestra #${state.conteoActualizaciones} a las ${state.horaTexto} (±${state.precisionMetros.toInt()}m). Se detiene al salir."
+            if (state.esReferencial) "Modo referencial Santiago. Sincronizando satélites en segundo plano."
+            else "Muestra #${state.conteoActualizaciones} a las ${state.horaTexto} (±${state.precisionMetros.toInt()}m). Se detiene al salir."
         is ClinicasLocationState.BuscandoUbicacion ->
-            "Obteniendo primera coordenada satelital/red..."
+            "Sincronizando coordenadas satelitales y de red..."
         is ClinicasLocationState.UbicacionDetenida ->
             "Ubicación detenida. Sensor liberado al cerrar la pantalla."
         else ->
@@ -218,20 +254,20 @@ private fun GpsFlavorBanner(isBaseline: Boolean, state: ClinicasLocationState) {
         color = bgColor,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .border(1.dp, borderColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
             .semantics { contentDescription = "$titulo. $detalle" },
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
                 tint = borderColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column {
@@ -251,16 +287,177 @@ private fun GpsFlavorBanner(isBaseline: Boolean, state: ClinicasLocationState) {
     }
 }
 
+/**
+ * Contenedor visual que combina el mapa interactivo y la lista de clínicas.
+ */
 @Composable
-private fun ListaClinicasConDistancia(
-    clinicasConDistancia: List<Pair<ClinicaModel, String>>
+private fun ContenidoMapaYLista(
+    estado: ClinicasLocationState.UbicacionDisponible,
+    onReintentarGps: () -> Unit
 ) {
+    val context = LocalContext.current
+    var verSoloLista by remember { mutableStateOf(false) }
+
     LazyColumn(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(clinicasConDistancia, key = { it.first.id }) { (clinica, distanciaTexto) ->
-            ClinicaCardConDistancia(clinica = clinica, distanciaTexto = distanciaTexto)
+        // Aviso si se está en modo referencial por mala señal satelital
+        if (estado.esReferencial) {
+            item {
+                Surface(
+                    color = Color(0xFF78350F).copy(alpha = 0.2f),
+                    border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Modo Referencial Activo",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFDE68A)
+                            )
+                            Text(
+                                text = "Mostrando distancias estimadas respecto a Santiago Centro mientras se fijan los satélites GPS.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFDE68A).copy(alpha = 0.9f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        TextButton(
+                            onClick = onReintentarGps,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("Reintentar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+                        }
+                    }
+                }
+            }
+        }
+
+        // Selector de vista: Mapa interactivo o Lista (Pill Segmented Control moderno sin salto de línea)
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Mapa de Red Asistencial",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                        .padding(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (!verSoloLista) MaterialTheme.colorScheme.primary else Color.Transparent)
+                            .clickable { verSoloLista = false }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Map,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = if (!verSoloLista) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Mapa",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (!verSoloLista) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (verSoloLista) MaterialTheme.colorScheme.primary else Color.Transparent)
+                            .clickable { verSoloLista = true }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ViewList,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = if (verSoloLista) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Lista",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (verSoloLista) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Mapa Interactivo Real de Red Asistencial (OpenStreetMap / Satélite)
+        if (!verSoloLista) {
+            item {
+                ClinicasMapComponent(
+                    userLat = estado.latitud,
+                    userLon = estado.longitud,
+                    clinicasConDistancia = estado.clinicasConDistancia,
+                    esReferencial = estado.esReferencial,
+                    precisionMetros = estado.precisionMetros,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                )
+            }
+        }
+
+        // Encabezado de la lista
+        item {
+            Text(
+                text = "Centros de Atención Disponibles (${estado.clinicasConDistancia.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
+        // Lista de tarjetas de clínicas
+        items(estado.clinicasConDistancia, key = { it.first.id }) { (clinica, distanciaTexto) ->
+            ClinicaCardConDistancia(
+                clinica = clinica,
+                distanciaTexto = distanciaTexto,
+                onNavegar = { openExternalNavigation(context, clinica) },
+                onLlamar = { callClinic(context, clinica.telefono) }
+            )
         }
     }
 }
@@ -268,7 +465,9 @@ private fun ListaClinicasConDistancia(
 @Composable
 private fun ClinicaCardConDistancia(
     clinica: ClinicaModel,
-    distanciaTexto: String
+    distanciaTexto: String,
+    onNavegar: () -> Unit,
+    onLlamar: () -> Unit
 ) {
     val accesible = "${clinica.nombre}, a $distanciaTexto de distancia. " +
             "Dirección: ${clinica.direccion}. Teléfono: ${clinica.telefono}. " +
@@ -292,6 +491,7 @@ private fun ClinicaCardConDistancia(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Nombre y badge de distancia
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -305,7 +505,7 @@ private fun ClinicaCardConDistancia(
                     modifier = Modifier.weight(1f)
                 )
 
-                // Badge con distancia calculada en tiempo real
+                // Badge de distancia
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(8.dp)
@@ -340,13 +540,14 @@ private fun ClinicaCardConDistancia(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            // Dirección
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Filled.LocationOn,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(15.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -357,13 +558,14 @@ private fun ClinicaCardConDistancia(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
+            // Teléfono
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Filled.Phone,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(15.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -374,41 +576,81 @@ private fun ClinicaCardConDistancia(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            AssistChip(
-                onClick = {},
-                label = {
-                    Text(
-                        text = if (clinica.abierta) "Atención 24 Horas" else "Cerrada",
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = if (clinica.abierta) Color(0xFF10B981) else Color(0xFFEF4444)
-                    )
-                },
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = if (clinica.abierta)
-                        Color(0xFF064E3B).copy(alpha = 0.25f)
-                    else
-                        Color(0xFF7F1D1D).copy(alpha = 0.25f),
-                    labelColor = if (clinica.abierta)
-                        Color(0xFFA7F3D0)
-                    else
-                        Color(0xFFFCA5A5)
-                ),
-                border = BorderStroke(
-                    1.dp,
-                    if (clinica.abierta) Color(0xFF10B981).copy(alpha = 0.3f)
-                    else Color(0xFFEF4444).copy(alpha = 0.3f)
-                ),
-                shape = RoundedCornerShape(8.dp)
-            )
+            // Fila de acciones y estado
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Estado 24h
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = if (clinica.abierta) "24 Horas" else "Cerrada",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (clinica.abierta) Color(0xFF10B981) else Color(0xFFEF4444)
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = if (clinica.abierta)
+                            Color(0xFF064E3B).copy(alpha = 0.25f)
+                        else
+                            Color(0xFF7F1D1D).copy(alpha = 0.25f),
+                        labelColor = if (clinica.abierta)
+                            Color(0xFFA7F3D0)
+                        else
+                            Color(0xFFFCA5A5)
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (clinica.abierta) Color(0xFF10B981).copy(alpha = 0.3f)
+                        else Color(0xFFEF4444).copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                // Botones Navegar y Llamar
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onLlamar,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Llamar",
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+
+                    Button(
+                        onClick = onNavegar,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Directions,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ruta", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
@@ -518,30 +760,49 @@ private fun EstadoPermisoDenegado(onReintentar: () -> Unit) {
 }
 
 @Composable
-private fun EstadoBuscandoUbicacion() {
+private fun EstadoBuscandoUbicacion(onForzarReferencial: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .padding(24.dp)
             .semantics {
                 liveRegion = LiveRegionMode.Polite
                 contentDescription = "Buscando señal de ubicación satelital y de red..."
             },
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
             Text(
-                text = "Buscando ubicación satelital...",
+                text = "Cargando red asistencial...",
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Calculando coordenadas GPS en tiempo real",
+                text = "Conectando con centros de atención médica",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Botón de acción rápida para no quedar bloqueado ante mal internet
+            OutlinedButton(
+                onClick = onForzarReferencial,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Cargar mapa de inmediato", fontSize = 13.sp)
+            }
         }
     }
 }
@@ -597,7 +858,7 @@ private fun EstadoUbicacionDetenida(ultimaHora: String, total: Int) {
 }
 
 @Composable
-private fun EstadoError(mensaje: String) {
+private fun EstadoError(mensaje: String, onUsarReferencial: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -614,7 +875,7 @@ private fun EstadoError(mensaje: String) {
             Column(
                 modifier = Modifier.padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
                     text = "Error al obtener ubicación",
@@ -627,7 +888,35 @@ private fun EstadoError(mensaje: String) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
+                Button(
+                    onClick = onUsarReferencial,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Cargar mapa con ubicación referencial", color = Color.White)
+                }
             }
         }
     }
+}
+
+private fun openExternalNavigation(context: Context, clinica: ClinicaModel) {
+    try {
+        val gmmIntentUri = Uri.parse("geo:${clinica.latitud},${clinica.longitud}?q=${Uri.encode(clinica.nombre)}")
+        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+        mapIntent.setPackage("com.google.android.apps.maps")
+        context.startActivity(mapIntent)
+    } catch (e: Exception) {
+        val webUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${clinica.latitud},${clinica.longitud}")
+        val webIntent = Intent(Intent.ACTION_VIEW, webUri)
+        context.startActivity(webIntent)
+    }
+}
+
+private fun callClinic(context: Context, phone: String) {
+    try {
+        val cleanPhone = phone.replace(" ", "")
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanPhone"))
+        context.startActivity(intent)
+    } catch (_: Exception) {}
 }

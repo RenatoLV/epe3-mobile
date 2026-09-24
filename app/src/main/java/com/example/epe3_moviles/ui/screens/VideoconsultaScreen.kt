@@ -46,7 +46,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.epe3_moviles.webrtc.WebRtcState
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.RendererCommon
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.SubcomposeAsyncImage
+import com.example.epe3_moviles.BuildConfig
+import com.example.epe3_moviles.util.DoctorImageHelper
 
 /**
  * Pantalla de Videoconsulta con conexión WebRTC real en Loopback.
@@ -610,6 +614,8 @@ private fun DoctorCallInfoCard(
     onProfesionalSelected: (Profesional) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val isBaseline = BuildConfig.FLAVOR == "baseline"
 
     Card(
         modifier = Modifier
@@ -634,14 +640,36 @@ private fun DoctorCallInfoCard(
                     modifier = Modifier.size(46.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        coil.compose.AsyncImage(
-                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                .data(com.example.epe3_moviles.config.NetworkConfig.getFotoMedicoUrl(profesionalSeleccionado.id))
-                                .crossfade(true)
-                                .build(),
+                        SubcomposeAsyncImage(
+                            model = DoctorImageHelper.buildDoctorImageRequest(
+                                context = context,
+                                medicoId = profesionalSeleccionado.id,
+                                isBaseline = isBaseline,
+                                targetSizePx = 480
+                            ),
                             contentDescription = "Foto de ${profesionalSeleccionado.nombre}",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            loading = {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(
+                                        id = DoctorImageHelper.getDoctorDrawableRes(profesionalSeleccionado.id)
+                                    ),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            },
+                            error = {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(
+                                        id = DoctorImageHelper.getDoctorDrawableRes(profesionalSeleccionado.id)
+                                    ),
+                                    contentDescription = "Foto de ${profesionalSeleccionado.nombre}",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         )
                     }
                 }
